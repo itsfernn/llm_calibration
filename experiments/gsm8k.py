@@ -101,6 +101,8 @@ def run_gsm8k(
     )
     model.eval()
 
+
+    ## Hyperparameters from the HuggingFace model card for qwen
     if thinking:
         gen_kwargs = dict(
             do_sample=True,
