@@ -197,10 +197,16 @@ def run_gsm8k(
                     for t, token_id in enumerate(prediction_ids):
                         step_idx = start_idx + t
 
-                        if step_idx >= log_probs.shape[0]:
+                        
+                        # Verify token matches
+                        if content_ids[step_idx] != token_id:
+                            # Token mismatch, skip this prediction
+                            print(f"Warning: Token mismatch at position {step_idx}: expected {token_id}, got {content_ids[step_idx]}")
+                            prediction_logprobs = []
                             break
 
-                        lp = log_probs[step_idx, i, token_id]
+                        
+                        lp = output_log_probs[i, index + step_idx]
                         prediction_logprobs.append(lp.item())
 
             output = {
