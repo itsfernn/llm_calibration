@@ -96,7 +96,7 @@ def run_gsm8k(
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype="auto",
+        dtype=torch.float16,
         device_map="auto"
     )
     model.eval()
