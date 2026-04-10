@@ -186,10 +186,6 @@ def run_gsm8k(
             prediction = output["answer"]
             confidence = output["confidence"]
 
-            ### Deprecated: using regex parsing instead of JSON parsing for better robustness
-            #prediction = extract_key(content, "answer")
-            #confidence = extract_key(content, "confidence")
-
             prediction_logprobs = []
 
             if prediction is not None:
