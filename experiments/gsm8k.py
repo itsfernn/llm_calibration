@@ -50,6 +50,12 @@ def run_gsm8k(
     max_samples=None,
     thinking=True,
 ):
+    """
+    Run GSM8K evaluation on a model.
+    
+    Outputs are written to `run_dir/outputs.jsonl` (JSON lines format).
+    Returns the path to the run directory.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Setup output dir
