@@ -9,11 +9,11 @@ DEFAULT_SYSTEM_PROMPTS = {
     "ai2_arc": AI2_ARC_PROMPT,
 }
 
-def run_dataset(dataset_name, model_name, batch_size, system_prompt, out_dir, use_cuda, max_samples, dataset_config=None):
+def run_dataset(dataset_name, model_name, batch_size, system_prompt, out_dir, max_samples, dataset_config=None, thinking=False):
     if dataset_name == "gsm8k":
-        return run_gsm8k(model_name, system_prompt, batch_size, out_dir, use_cuda, max_samples)
+        return run_gsm8k(model_name, system_prompt, batch_size, out_dir, max_samples, thinking=thinking)
     elif dataset_name == "ai2_arc":
-        return run_ai2_arc(model_name, system_prompt, batch_size, out_dir, use_cuda, max_samples, dataset_config=dataset_config)
+        return run_ai2_arc(model_name, system_prompt, batch_size, out_dir, max_samples, dataset_config=dataset_config, thinking=thinking)
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
@@ -25,8 +25,8 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size")
     parser.add_argument("--system_prompt", type=str, default=GSM8K_PROMPT, help="System prompt")
     parser.add_argument("--out_dir", type=str, default="out_runs", help="Output directory")
-    parser.add_argument("--use_cuda", action="store_true", help="Use GPU if available")
     parser.add_argument("--max_samples", type=int, default=None, help="Limit number of samples for debugging")
+    parser.add_argument("--thinking", action="store_true", help="Whether to include step-by-step reasoning in the prompt")
 
     args = parser.parse_args()
 
@@ -36,9 +36,9 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         system_prompt=args.system_prompt,
         out_dir=args.out_dir,
-        use_cuda=args.use_cuda,
         max_samples=args.max_samples,
-        dataset_config=args.dataset_config
+        dataset_config=args.dataset_config,
+        thinking=args.thinking
     )
 
     print(f"Finished run. Outputs saved in {run_dir}")
