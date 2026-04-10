@@ -155,18 +155,15 @@ def run_gsm8k(
                 **inputs,
                 max_new_tokens=512,
                 return_dict_in_generate=True,
-                output_scores=True,
                 **gen_kwargs,
             )
 
         sequences = out.sequences
 
-        # [steps, batch, vocab]
-        score_tensor = torch.stack(out.scores, dim=0)
-        log_probs = F.log_softmax(score_tensor, dim=-1)
+        # cut off the prompt tokens to get only the generated part
+        output_sequences = sequences[:, inputs["input_ids"].shape[1]:]
+        output_log_probs = score_sequences(model, sequences)[:, inputs["input_ids"].shape[1]:]
 
-        input_len = inputs["input_ids"].shape[1]
-        output_sequences = sequences[:, input_len:]
 
         for i in range(len(questions)):
             # parsing thinking content
