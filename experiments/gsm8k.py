@@ -135,15 +135,12 @@ def run_gsm8k(
             for q in questions
         ]
 
-        texts = [
-            tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-                enable_thinking=thinking,
-            )
-            for messages in messages_batch
-        ]
+        texts = tokenizer.apply_chat_template(
+            messages_batch,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=thinking,
+        )
 
 
         inputs = tokenizer(
