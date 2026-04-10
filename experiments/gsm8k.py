@@ -121,6 +121,7 @@ def run_gsm8k(
     output_path = os.path.join(run_dir, "outputs.jsonl")
     f_out = open(output_path, "w")
 
+    tokenizer.padding_side = "left"
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         batch = test_data[start:start + batch_size]
         questions = batch["question"]
@@ -144,7 +145,6 @@ def run_gsm8k(
             for messages in messages_batch
         ]
 
-        tokenizer.padding_side = "left"
 
         inputs = tokenizer(
             texts,
