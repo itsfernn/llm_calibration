@@ -189,11 +189,7 @@ def run_gsm8k(
             prediction_logprobs = []
 
             if prediction is not None:
-                prediction_ids = tokenizer(
-                    prediction,
-                    add_special_tokens=False,
-                    return_tensors="pt"
-                )["input_ids"][0].to(device)
+                prediction_ids = tokenizer(prediction)["input_ids"]
 
                 start_idx = find_subsequence(content_ids, prediction_ids)
 
