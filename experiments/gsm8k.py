@@ -26,6 +26,21 @@ Rules:
 - Do not include units in the answer.
 - Do not include any explanation inside or after the JSON."""
 
+def score_sequences(model, sequences):
+    """
+    Compute logprobs for actual tokens in sequences (prompt + generation)
+    Returns token_logprobs tensor of shape (batch, seq_len-1)
+    """
+    with torch.no_grad():
+        outputs = model(input_ids=sequences)
+
+    logits = outputs.logits[:, :-1, :]
+    targets = sequences[:, 1:]
+
+    log_probs = F.log_softmax(logits, dim=-1)
+    token_logprobs = log_probs.gather(2, targets.unsqueeze(-1)).squeeze(-1)
+
+    return token_logprobs
 
 def run_gsm8k(
     model_name,
