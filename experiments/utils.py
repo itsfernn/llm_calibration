@@ -120,14 +120,6 @@ def parse_output(text):
                 pass
             break
 
-    # --------------------------------
-    # 4. Fallback to \boxed{} for answer
-    # --------------------------------
-    if result["answer"] is None:
-        boxed_match = re.search(r'\\boxed\{([^}]+)\}', text)
-        if boxed_match:
-            result["answer"] = boxed_match.group(1).strip()
-
     # ----------------------------
     # 5. Normalize confidence
     # ----------------------------
