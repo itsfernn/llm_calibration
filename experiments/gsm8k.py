@@ -118,7 +118,8 @@ def run_gsm8k(
             top_k=20,
         )
 
-    outputs_log = []
+    output_path = os.path.join(run_dir, "outputs.jsonl")
+    f_out = open(output_path, "w")
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         batch = test_data[start:start + batch_size]
@@ -216,7 +217,7 @@ def run_gsm8k(
                         lp = log_probs[step_idx, i, token_id]
                         prediction_logprobs.append(lp.item())
 
-            outputs_log.append({
+            output = {
                 "index": start + i,
                 "question": questions[i],
                 "answer": answers[i],
@@ -225,10 +226,10 @@ def run_gsm8k(
                 "prediction": prediction,
                 "logprobs": prediction_logprobs,
                 "verb_conf": confidence
-            })
-
-    with open(os.path.join(run_dir, "outputs.json"), "w") as f:
-        json.dump(outputs_log, f, indent=2)
+            }
+            json.dump(output, f_out)
+            f_out.write("\n")
+    f_out.close()
 
     print(f"Done. Saved to {run_dir}")
     return run_dir
