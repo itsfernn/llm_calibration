@@ -122,6 +122,8 @@ def run_gsm8k(
     f_out = open(output_path, "w")
 
     tokenizer.padding_side = "left"
+    
+
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         batch = test_data[start:start + batch_size]
         questions = batch["question"]
