@@ -18,20 +18,6 @@ def find_subsequence(sequence, subsequence):
     return None
 
 
-
-def parse_response(text: str):
-    pattern = r"Final Answer:\s*(?P<answer>.*?)\s*Confidence:\s*(?P<confidence>0(?:\.\d+)?|1(?:\.0+)?)"
-    
-    match = re.search(pattern, text, re.DOTALL)
-
-    if not match:
-        return None, None
-    
-    answer = match.group("answer").strip()
-    confidence = float(match.group("confidence"))
-
-    return answer, confidence
-
 def parse_output(text):
     """
     Parses model output for:
