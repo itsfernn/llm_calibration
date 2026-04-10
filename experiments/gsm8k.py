@@ -165,9 +165,11 @@ def run_gsm8k(
         output_log_probs = score_sequences(model, sequences)[:, inputs["input_ids"].shape[1]:]
 
 
-        for i in range(len(questions)):
+        for i in range(output_sequences.shape[0]):
             # parsing thinking content
             output_ids = output_sequences[i].tolist()
+
+            # parsing thinking content
             try:
                 # rindex finding 151668 (</think>)
                 index = len(output_ids) - output_ids[::-1].index(151668)
@@ -196,7 +198,6 @@ def run_gsm8k(
                 if start_idx is not None:
                     for t, token_id in enumerate(prediction_ids):
                         step_idx = start_idx + t
-
                         
                         # Verify token matches
                         if content_ids[step_idx] != token_id:
@@ -204,7 +205,6 @@ def run_gsm8k(
                             print(f"Warning: Token mismatch at position {step_idx}: expected {token_id}, got {content_ids[step_idx]}")
                             prediction_logprobs = []
                             break
-
                         
                         lp = output_log_probs[i, index + step_idx]
                         prediction_logprobs.append(lp.item())
@@ -221,6 +221,15 @@ def run_gsm8k(
             }
             json.dump(output, f_out)
             f_out.write("\n")
+            
+            if prediction is not None:
+                del prediction_ids
+        
+        # Cleanup per batch
+        del sequences, output_sequences, output_log_probs, inputs, out
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    
     f_out.close()
 
     print(f"Done. Saved to {run_dir}")
