@@ -11,7 +11,7 @@ from utils import parse_output, find_subsequence, print_metadata
 
 DEFAULT_SYSTEM_PROMPT = """Solve the following math problem.
 
-Please reason step by step, and put your final answer within \boxed{}.
+Please reason step by step, and put your final answer within  \\boxed{}.
 
 Then output ONLY the following JSON (no extra text):
 
