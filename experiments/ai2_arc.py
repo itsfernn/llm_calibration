@@ -100,7 +100,7 @@ def run_ai2_arc(
     tokenizer = AutoTokenizer.from_pretrained(model)
     model = AutoModelForCausalLM.from_pretrained(
         model,
-        dtype=torch.float16,
+        dtype="auto",
         device_map="auto"
     )
     model.eval()
