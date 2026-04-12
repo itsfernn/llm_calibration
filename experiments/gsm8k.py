@@ -9,6 +9,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch.nn.functional as F
 from utils import parse_output, find_subsequence, print_metadata
 
+END_THINK_TOKEN_ID = 151668
+
+ANSWER_PREFIX = """{
+  "answer": """
+
 DEFAULT_SYSTEM_PROMPT = """Solve the following math problem.
 
 Please reason step by step, and put your final answer within  \\boxed{}.
