@@ -150,10 +150,6 @@ def run_ai2_arc(
             enable_thinking=thinking,
         )
 
-        for t in texts:
-            print("Formatted prompt:")
-            print(t)
-            print("-----")
 
         if thinking:
             inputs = tokenizer(
@@ -211,15 +207,11 @@ def run_ai2_arc(
             content_ids = content_sequences[i].tolist()
             content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
 
-            print(f"Content for sample {start + i}:\n{content}\n")
-
 
             # Extract answer
             output = parse_output(content)
             prediction = output["answer"]
             confidence = output["confidence"]
-
-            print(f"Prediction: {prediction}\nConfidence: {confidence}\n")
 
             output = {
                 "id": b["id"],
