@@ -71,8 +71,9 @@ def run_gsm8k(
 
     # Metadata
     metadata = {
-        "model": model_name,
+        "model": model,
         "batch_size": batch_size,
+        "thinking": thinking,
         "system_prompt": system_prompt,
         "timestamp": run_timestamp,
         "device": str(device),
@@ -92,20 +93,22 @@ def run_gsm8k(
     print_metadata(metadata)
 
     # Load dataset
-    dataset = load_dataset("gsm8k", "main")
-    test_data = dataset["test"]
+    test_data = load_dataset("gsm8k", "main", split="test")
 
     if max_samples:
         test_data = test_data.select(range(min(max_samples, len(test_data))))
 
     # Model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model)
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+        model,
         dtype=torch.float16,
         device_map="auto"
     )
     model.eval()
+
+
+    answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
 
 
     ## Hyperparameters from the HuggingFace model card for qwen
@@ -131,16 +134,14 @@ def run_gsm8k(
     
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
-        batch = test_data[start:start + batch_size]
-        questions = batch["question"]
-        answers = batch["answer"]
+        batch = test_data.select(range(start, start + batch_size))
 
         messages_batch = [
             [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": q}
+                {"role": "user", "content": q },
             ]
-            for q in questions
+            for q in batch["question"]
         ]
 
         texts = tokenizer.apply_chat_template(
@@ -151,8 +152,34 @@ def run_gsm8k(
         )
 
 
-        inputs = tokenizer(
-            texts,
+
+        if thinking:
+            inputs = tokenizer(
+                texts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            ).to(device)
+
+            with torch.inference_mode():
+                out = model.generate(
+                    **inputs,
+                    eos_token_id=END_THINK_TOKEN_ID,
+                    max_new_tokens=1000,
+                    return_dict_in_generate=True,
+                    **gen_kwargs,
+                )
+
+            thinking_sequences = out.sequences[:, inputs["input_ids"].shape[1]:]
+            thinking_texts = tokenizer.batch_decode(thinking_sequences, skip_special_tokens=True)
+
+            new_texts = [ t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX for i, t in enumerate(texts) ]
+
+        else:
+            new_texts = [ t + ANSWER_PREFIX  for t in texts ]
+
+        new_inputs = tokenizer(
+            new_texts,
             return_tensors="pt",
             padding=True,
             truncation=True
@@ -160,34 +187,19 @@ def run_gsm8k(
 
         with torch.inference_mode():
             out = model.generate(
-                **inputs,
-                max_new_tokens=512,
+                **new_inputs,
+                max_new_tokens=1000,
                 return_dict_in_generate=True,
                 **gen_kwargs,
             )
 
         sequences = out.sequences
-
-        # cut off the prompt tokens to get only the generated part
-        output_sequences = sequences[:, inputs["input_ids"].shape[1]:]
-        output_log_probs = score_sequences(model, sequences)[:, inputs["input_ids"].shape[1]:]
+        content_sequences = sequences[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+        output_log_probs = score_sequences(model, sequences)[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
 
 
-        for i in range(output_sequences.shape[0]):
-            # parsing thinking content
-            output_ids = output_sequences[i].tolist()
-
-            # parsing thinking content
-            try:
-                # rindex finding 151668 (</think>)
-                index = len(output_ids) - output_ids[::-1].index(151668)
-            except ValueError:
-                index = 0
-
-            thinking_ids = output_ids[:index]
-            content_ids = output_ids[index:]
-
-            thinking_content = tokenizer.decode(thinking_ids, skip_special_tokens=True).strip("\n")
+        for i, b in enumerate(batch):
+            content_ids = content_sequences[i].tolist()
             content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
 
 
@@ -214,15 +226,15 @@ def run_gsm8k(
                             prediction_logprobs = []
                             break
                         
-                        lp = output_log_probs[i, index + step_idx]
+                        lp = output_log_probs[i, step_idx]
                         prediction_logprobs.append(lp.item())
 
             output = {
                 "index": start + i,
-                "question": questions[i],
-                "answer": answers[i],
+                "question": b["question"],
+                "answer": b["answer"],
                 "content": content,
-                "thinking": thinking_content,
+                "thinking": thinking_texts[i] if thinking else None,
                 "prediction": prediction,
                 "logprobs": prediction_logprobs,
                 "verb_conf": confidence
@@ -230,11 +242,7 @@ def run_gsm8k(
             json.dump(output, f_out)
             f_out.write("\n")
             
-            if prediction is not None:
-                del prediction_ids
-        
         # Cleanup per batch
-        del sequences, output_sequences, output_log_probs, inputs, out
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
     
