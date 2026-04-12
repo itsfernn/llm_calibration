@@ -6,126 +6,82 @@ from datasets import load_dataset
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch.nn.functional as F
+from utils import parse_output, find_subsequence, print_metadata
+
+END_THINK_TOKEN_ID = 151668
+
+ANSWER_PREFIX = """{
+    \"answer\": \""""
 
 DEFAULT_SYSTEM_PROMPT = """Answer the following multiple-choice question. Choose the correct answer from the choices provided.
+Then output ONLY the following JSON (no extra text):
 
-Return EXACTLY this JSON:
-{"answer": "...", "confidence": number}
+{
+  "answer": <final numeric answer>,
+  "confidence": <float between 0 and 1>
+}
 
 Rules:
-- answer must be the letter of the correct choice (A, B, C, D)
-- confidence must be an integer between 0 and 100
+- answer must be the label of the correct choice
+- confidence must be a float between 0 and 1 (e.g. 0.82)
 - no extra text"""
 
-def format_question(example):
-    """Format a multiple-choice example into a string."""
-    question = example['question']
-    choices = example['choices']
-    lines = [f"Question: {question}", "Choices:"]
-    for label, text in zip(choices['label'], choices['text']):
-        lines.append(f"{label}: {text}")
-    return '\n'.join(lines)
+def format_question(q):
+    lines = []
 
-def chunk_list(lst, n):
-    """Yield successive n-sized chunks from list."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+    lines.append(q.get('question', ''))
+    lines.append("")
 
-def print_metadata(metadata):
-    print(f"Running evaluation with model: {metadata['model']}")
-    print(f"Batch size: {metadata['batch_size']}")
-    print(f"System prompt: {metadata['system_prompt']}")
-    print(f"Device: {metadata['device']}")
-    if metadata['max_samples'] is not None:
-        print(f"Max samples: {metadata['max_samples']}")
-    if metadata['git_commit']:
-        print(f"Git commit: {metadata['git_commit']}")
+    choices = q.get('choices', {})
+    texts = choices.get('text', [])
+    labels = choices.get('label', [])
 
-def compute_choice_log_probs(model, tokenizer, system_prompt, formatted_question, choices_text, device='cuda'):
+    for label, text in zip(labels, texts):
+        lines.append(f"{label}. {text}")
+
+    return "\n".join(lines)
+
+def run_ai2_arc(
+    model,
+    dataset_config="ARC-Challenge",
+    system_prompt=DEFAULT_SYSTEM_PROMPT,
+    batch_size=4,
+    out_dir="out_runs",
+    max_samples=None,
+    thinking=False,
+    **kwargs
+):
     """
-    Compute log probabilities for each choice text given the context.
-    context = system_prompt + '\n\n' + formatted_question + '\nAnswer: '
-    We compute log p(choice | context) using the model's next token predictions.
-    Returns list of log probabilities (float) for each choice.
+    Run AI2 ARC evaluation on a model.
+    
+    Outputs are written to `run_dir/outputs.jsonl` (JSON lines format).
+    Returns the path to the run directory.
     """
-    # Build context string
-    context = system_prompt + '\n\n' + formatted_question + '\nAnswer: '
-    # Tokenize context (without padding)
-    context_inputs = tokenizer(context, return_tensors='pt').to(device)
-    context_ids = context_inputs.input_ids[0]  # shape (context_len)
-    context_len = context_ids.shape[0]
-    
-    # Tokenize each choice separately (without special tokens)
-    choice_ids_list = []
-    for choice in choices_text:
-        choice_ids = tokenizer(choice, add_special_tokens=False, return_tensors='pt').input_ids[0].to(device)
-        choice_ids_list.append(choice_ids)
-    
-    # Create a batch where each sample is context + choice
-    # We'll pad choices to max length
-    max_choice_len = max(len(ids) for ids in choice_ids_list)
-    pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
-    batched_input_ids = []
-    batched_attention_mask = []
-    for choice_ids in choice_ids_list:
-        # Concatenate context_ids and choice_ids
-        input_ids = torch.cat([context_ids, choice_ids])
-        # Pad to max length (context_len + max_choice_len)
-        padding_len = max_choice_len - len(choice_ids)
-        if padding_len > 0:
-            input_ids = torch.cat([input_ids, torch.full((padding_len,), pad_token_id, device=device)])
-        # Attention mask: 1 for real tokens, 0 for padding
-        attention_mask = torch.ones(context_len + len(choice_ids), device=device)
-        if padding_len > 0:
-            attention_mask = torch.cat([attention_mask, torch.zeros(padding_len, device=device)])
-        batched_input_ids.append(input_ids)
-        batched_attention_mask.append(attention_mask)
-    
-    # Stack into tensors
-    input_ids = torch.stack(batched_input_ids)  # shape (num_choices, seq_len)
-    attention_mask = torch.stack(batched_attention_mask)
-    
-    with torch.no_grad():
-        outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-        logits = outputs.logits  # shape (num_choices, seq_len, vocab_size)
-        # Compute log probabilities for each choice token
-        choice_log_probs = []
-        for i, choice_ids in enumerate(choice_ids_list):
-            # positions corresponding to choice tokens (after context)
-            start_pos = context_len
-            log_prob = 0.0
-            # logits[i, pos-1] corresponds to prediction for token at position pos
-            for idx, token_id in enumerate(choice_ids):
-                pos = start_pos + idx
-                # logits at pos-1
-                token_logits = logits[i, pos - 1]  # shape (vocab_size)
-                log_softmax = torch.log_softmax(token_logits, dim=-1)
-                token_log_prob = log_softmax[token_id].item()
-                log_prob += token_log_prob
-            choice_log_probs.append(log_prob)
-    return choice_log_probs
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def run_ai2_arc(model_name, system_prompt, batch_size=4, out_dir="out_runs", use_cuda=False, max_samples=None, dataset_config="ARC-Challenge"):
-    # Setup output directory
+    # Setup output dir
     run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join(out_dir, f"run_{run_timestamp}")
     os.makedirs(run_dir, exist_ok=True)
 
-    # Collect metadata
+    # Metadata
     metadata = {
-        "model": model_name,
+        "model": model,
+        "dataset": "ai2_arc", 
+        "dataset_config": dataset_config,
         "batch_size": batch_size,
-        "system_prompt": system_prompt,
+        "thinking": thinking,
         "timestamp": run_timestamp,
-        "git_commit": None,
-        "device": "cuda" if use_cuda else "cpu",
+        "device": str(device),
         "max_samples": max_samples,
-        "dataset_config": dataset_config
+        "system_prompt": system_prompt
     }
 
     try:
-        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
-        metadata["git_commit"] = commit_hash
+        metadata["git_commit"] = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"]
+        ).decode().strip()
     except Exception:
         metadata["git_commit"] = "unknown"
 
@@ -134,63 +90,155 @@ def run_ai2_arc(model_name, system_prompt, batch_size=4, out_dir="out_runs", use
 
     print_metadata(metadata)
 
-    # Load AI2 ARC dataset with specified config
-    dataset = load_dataset("allenai/ai2_arc", dataset_config)
-    test_data = dataset["test"]
-    if max_samples is not None:
+    # Load dataset
+    test_data = load_dataset("ai2_arc", dataset_config, split="test")
+
+    if max_samples:
         test_data = test_data.select(range(min(max_samples, len(test_data))))
-        print(f"Debug mode: limiting to {len(test_data)} samples")
 
-    # Save test questions with choices
-    with open(os.path.join(run_dir, "test_questions.json"), "w") as f:
-        json.dump([{'id': item['id'], 'question': item['question'], 'choices': item['choices']} for item in test_data], f, indent=2)
-
-    # Load model and tokenizer
-    print(f"Loading model {model_name}...")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name, device_map=None if not use_cuda else 'auto', torch_dtype=torch.float16 if use_cuda else torch.float32)
-    device = 'cuda' if use_cuda else 'cpu'
-    model.to(device)
+    # Model
+    tokenizer = AutoTokenizer.from_pretrained(model)
+    model = AutoModelForCausalLM.from_pretrained(
+        model,
+        dtype=torch.float16,
+        device_map="auto"
+    )
     model.eval()
 
-    outputs_log = []
 
-    for batch_idx, batch in enumerate(tqdm(list(chunk_list(test_data, batch_size)), desc="Batches")):
-        # Prepare formatted questions for generation
-        formatted_batch = [format_question(item) for item in batch]
-        prompts = [system_prompt + '\n\n' + q + '\nAnswer: ' for q in formatted_batch]
-        # Tokenize and generate
-        inputs = tokenizer(prompts, return_tensors='pt', padding=True, truncation=True).to(device)
-        with torch.no_grad():
-            out = model.generate(**inputs, max_new_tokens=50, output_scores=True, return_dict_in_generate=True)
-        # Decode generated answers
-        generated_texts = tokenizer.batch_decode(out.sequences, skip_special_tokens=True)
-        # Remove prompts from generated texts
-        generated_answers = []
-        for i, text in enumerate(generated_texts):
-            prompt = prompts[i]
-            answer = text[len(prompt):].strip() if text.startswith(prompt) else text
-            generated_answers.append(answer)
+    answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
 
-        # For each item in batch, compute choice log probs
-        for i, item in enumerate(batch):
-            formatted = formatted_batch[i]
-            choices_text = item['choices']['text']
-            choice_log_probs = compute_choice_log_probs(model, tokenizer, system_prompt, formatted, choices_text, device=device)
+
+    ## Hyperparameters from the HuggingFace model card for qwen
+    if thinking:
+        gen_kwargs = dict(
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.95,
+            top_k=20,
+        )
+    else:
+        gen_kwargs = dict(
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.8,
+            top_k=20,
+        )
+
+    output_path = os.path.join(run_dir, "outputs.jsonl")
+    f_out = open(output_path, "w")
+
+    tokenizer.padding_side = "left"
+
+
+    for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
+        batch = test_data.select(range(start, start + batch_size))
+
+        messages_batch = [
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": format_question(row)},
+            ]
+            for row in batch
+        ]
+
+        texts = tokenizer.apply_chat_template(
+            messages_batch,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=thinking,
+        )
+
+        for t in texts:
+            print("Formatted prompt:")
+            print(t)
+            print("-----")
+
+        if thinking:
+            inputs = tokenizer(
+                texts,
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            ).to(device)
+
+            with torch.inference_mode():
+                out = model.generate(
+                    **inputs,
+                    eos_token_id=END_THINK_TOKEN_ID,
+                    max_new_tokens=1000,
+                    return_dict_in_generate=True,
+                    **gen_kwargs,
+                )
+
+            thinking_sequences = out.sequences[:, inputs["input_ids"].shape[1]:]
+            thinking_texts = tokenizer.batch_decode(thinking_sequences, skip_special_tokens=True)
+
+            new_texts = [ t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX for i, t in enumerate(texts) ]
+
+        else:
+            new_texts = [ t + ANSWER_PREFIX  for t in texts ]
+
+        new_inputs = tokenizer(
+            new_texts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True
+        ).to(device)
+
+        with torch.inference_mode():
+             logits = model(**new_inputs).logits
+             label_probs = []
+             for i, b in enumerate(batch):
+                 labels = b["choices"]["label"]
+                 label_ids = tokenizer.convert_tokens_to_ids(labels)
+                 label_probs.append(logits[i, -1, label_ids].softmax(dim=-1).tolist())
+
+
+        with torch.inference_mode():
+            out = model.generate(
+                **new_inputs,
+                max_new_tokens=100,
+                return_dict_in_generate=True,
+                **gen_kwargs,
+            )
+
+        sequences = out.sequences
+        content_sequences = sequences[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+
+        for i, b in enumerate(batch):
+            content_ids = content_sequences[i].tolist()
+            content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
+
+            print(f"Content for sample {start + i}:\n{content}\n")
+
+
+            # Extract answer
+            output = parse_output(content)
+            prediction = output["answer"]
+            confidence = output["confidence"]
+
+            print(f"Prediction: {prediction}\nConfidence: {confidence}\n")
+
+            output = {
+                "id": b["id"],
+                "question": b["question"],
+                "answer":  b["answerKey"],
+                "labels": b["choices"]["label"],
+                "content": content,
+                "thinking": thinking_texts[i] if thinking else None,
+                "prediction": prediction,
+                "label_probs": label_probs[i],
+                "verb_conf": confidence
+            }
+            json.dump(output, f_out)
+            f_out.write("\n")
             
-            outputs_log.append({
-                'id': item['id'],
-                'question': item['question'],
-                'choices': item['choices'],
-                'answerKey': item.get('answerKey', None),
-                'generated_answer': generated_answers[i],
-                'choice_log_probs': choice_log_probs,
-                'choice_labels': item['choices']['label']
-            })
+        # Cleanup per batch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    
+    f_out.close()
 
-    # Save outputs
-    with open(os.path.join(run_dir, "outputs.json"), "w") as f:
-        json.dump(outputs_log, f, indent=2)
-
-    print(f"Run complete. All data saved in {run_dir}")
+    print(f"Done. Saved to {run_dir}")
     return run_dir
