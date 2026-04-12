@@ -5,6 +5,7 @@ import torch
 def print_metadata(metadata):
     print(f"Running evaluation with model: {metadata['model']}")
     print(f"Batch size: {metadata['batch_size']}")
+    print(f"Thinking (step-by-step reasoning): {metadata['thinking']}")
     print(f"System prompt: {metadata['system_prompt']}")
     print(f"Device: {metadata['device']}")
     if metadata['git_commit']:
