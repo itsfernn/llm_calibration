@@ -132,7 +132,8 @@ def run_ai2_arc(
 
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
-        batch = test_data.select(range(start, start + batch_size))
+        end = min(start + batch_size, len(test_data))
+        batch = test_data.select(range(start, end))
 
         messages_batch = [
             [
