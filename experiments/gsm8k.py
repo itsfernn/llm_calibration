@@ -48,12 +48,13 @@ def score_sequences(model, sequences):
     return token_logprobs
 
 def run_gsm8k(
-    model_name,
-    system_prompt,
-    batch_size=4,
+    model,
+    batch_size,
+    thinking,
     out_dir="out_runs",
     max_samples=None,
-    thinking=True,
+    system_prompt=DEFAULT_SYSTEM_PROMPT,
+    **kwargs
 ):
     """
     Run GSM8K evaluation on a model.
