@@ -26,7 +26,7 @@ Then output ONLY the following JSON (no extra text):
 }
 
 Rules:
-- The answer must exactly match the value inside \boxed{}.
+- The answer must exactly match the value inside \\boxed{}.
 - Confidence must be a decimal between 0 and 1 (e.g., 0.82).
 - Do not include units in the answer.
 - Do not include any explanation inside or after the JSON."""
