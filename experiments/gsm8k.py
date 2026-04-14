@@ -166,7 +166,7 @@ def run_gsm8k(
                 out = model.generate(
                     **inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
-                    max_new_tokens=1000,
+                    max_new_tokens=500,
                     return_dict_in_generate=True,
                     **gen_kwargs,
                 )
@@ -189,7 +189,7 @@ def run_gsm8k(
         with torch.inference_mode():
             out = model.generate(
                 **new_inputs,
-                max_new_tokens=1000,
+                max_new_tokens=500,
                 return_dict_in_generate=True,
                 **gen_kwargs,
             )
@@ -204,7 +204,6 @@ def run_gsm8k(
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
             content = content_texts[i]
-
 
             # Extract answer
             output = parse_output(content)
