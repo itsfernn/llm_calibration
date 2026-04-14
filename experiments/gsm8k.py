@@ -196,13 +196,14 @@ def run_gsm8k(
 
         sequences = out.sequences
         content_sequences = sequences[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
-        output_log_probs = score_sequences(model, sequences)[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+        content_texts = tokenizer.batch_decode(content_sequences, skip_special_tokens=True)
 
+        output_log_probs = score_sequences(model, sequences)[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
 
         outputs = []
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
-            content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
+            content = content_texts[i]
 
 
             # Extract answer
