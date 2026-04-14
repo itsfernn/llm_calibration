@@ -242,10 +242,6 @@ def run_gsm8k(
             }
             json.dump(output, f_out)
             f_out.write("\n")
-            
-        # Cleanup per batch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
     
     f_out.close()
 
