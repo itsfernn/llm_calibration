@@ -199,6 +199,7 @@ def run_gsm8k(
         output_log_probs = score_sequences(model, sequences)[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
 
 
+        outputs = []
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
             content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
@@ -240,8 +241,11 @@ def run_gsm8k(
                 "logprobs": prediction_logprobs,
                 "verb_conf": confidence
             }
-            json.dump(output, f_out)
-            f_out.write("\n")
+            outputs.append(output)
+
+        for o in outputs:
+            json.dump(o, f_out)
+        f_out.write("\n")
     
     f_out.close()
 
