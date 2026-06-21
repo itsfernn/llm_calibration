@@ -2,12 +2,12 @@ import os
 import json
 import datetime
 import subprocess
+import time
 from datasets import load_dataset
 import torch
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch.nn.functional as F
-from utils import parse_output, find_subsequence, print_metadata
+from utils import parse_output, print_metadata
 
 END_THINK_TOKEN_ID = 151668
 
@@ -59,6 +59,10 @@ def run_mmlu(
     Returns the path to the run directory.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    if device.type == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"VRAM: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
 
     # Setup output dir
     run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -90,17 +94,34 @@ def run_mmlu(
     print_metadata(metadata)
 
     # Load dataset
+    print("Loading MMLU dataset...")
+    t_ds = time.perf_counter()
     test_data = load_dataset("cais/mmlu", "all", split="test")
+    print(f"Dataset loaded in {time.perf_counter() - t_ds:.1f}s ({len(test_data)} samples)")
 
     if max_samples:
         test_data = test_data.select(range(min(max_samples, len(test_data))))
 
     # Model
+    print(f"Loading model: {model}")
+    t_model = time.perf_counter()
     tokenizer = AutoTokenizer.from_pretrained(model)
-    model = AutoModelForCausalLM.from_pretrained(model, dtype="auto", device_map="auto")
+    model = AutoModelForCausalLM.from_pretrained(
+        model,
+        torch_dtype=torch.float16,
+        attn_implementation="sdpa",
+        device_map="auto",
+    )
     model.eval()
+    load_time = time.perf_counter() - t_model
+    print(f"Model loaded in {load_time:.1f}s")
+    if device.type == "cuda":
+        print(f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
+        metadata["dtype"] = "float16"
+        metadata["attention"] = "sdpa"
 
     answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
+    label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
 
     gen_kwargs = dict(do_sample=False)
 
@@ -109,7 +130,11 @@ def run_mmlu(
 
     tokenizer.padding_side = "left"
 
+    batch_times = []
+    total_start = time.perf_counter()
+
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
+        batch_start = time.perf_counter()
         end = min(start + batch_size, len(test_data))
         batch = [test_data[i] for i in range(start, end)]
 
@@ -159,21 +184,17 @@ def run_mmlu(
             new_texts, return_tensors="pt", padding=True, truncation=True
         ).to(device)
 
-        label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
-        with torch.inference_mode():
-            logits = model(**new_inputs).logits
-            label_probs = []
-            for i in range(len(batch)):
-                label_probs.append(logits[i, -1, label_ids].softmax(dim=-1).tolist())
-
         with torch.inference_mode():
             out = model.generate(
                 **new_inputs,
                 max_new_tokens=100,
+                output_scores=True,
+                return_dict_in_generate=True,
                 **gen_kwargs,
             )
+            label_probs = out.scores[0][:, label_ids].softmax(dim=-1).tolist()
 
-        content_sequences = out[
+        content_sequences = out.sequences[
             :, new_inputs["input_ids"].shape[1] - answer_prefix_len :
         ]
 
@@ -184,9 +205,9 @@ def run_mmlu(
             )
 
             # Extract answer
-            output = parse_output(content)
-            prediction = output["answer"]
-            confidence = output["confidence"]
+            parsed = parse_output(content)
+            prediction = parsed["answer"]
+            confidence = parsed["confidence"]
 
             answer_label = MMLU_LABELS[b["answer"]]
 
@@ -205,7 +226,22 @@ def run_mmlu(
             json.dump(output, f_out)
             f_out.write("\n")
 
+        batch_times.append(time.perf_counter() - batch_start)
+
     f_out.close()
 
+    total_time = time.perf_counter() - total_start
+    n_batches = len(batch_times)
+    if n_batches > 0:
+        avg_batch = sum(batch_times) / n_batches
+        min_batch = min(batch_times)
+        max_batch = max(batch_times)
+        throughput = len(test_data) / total_time
+        print(f"\n--- Benchmark ---")
+        print(f"Batches: {n_batches}")
+        print(f"Total time: {total_time:.1f}s ({total_time / 60:.1f} min)")
+        print(f"Avg batch: {avg_batch:.2f}s (min: {min_batch:.2f}s, max: {max_batch:.2f}s)")
+        print(f"Throughput: {throughput:.2f} samples/s")
+        print(f"")
     print(f"Done. Saved to {run_dir}")
     return run_dir
