@@ -119,7 +119,7 @@ def run_mmlu(
     print(f"Model loaded in {load_time:.1f}s")
     if device.type == "cuda":
         print(
-            f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB"
+            f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
         )
         metadata["dtype"] = "float16"
         metadata["attention"] = "sdpa"
