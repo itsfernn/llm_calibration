@@ -62,7 +62,7 @@ def run_mmlu(
     print(f"Using device: {device}")
     if device.type == "cuda":
         print(f"GPU: {torch.cuda.get_device_name(0)}")
-        print(f"VRAM: {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
+        print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
 
     # Setup output dir
     run_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -97,7 +97,9 @@ def run_mmlu(
     print("Loading MMLU dataset...")
     t_ds = time.perf_counter()
     test_data = load_dataset("cais/mmlu", "all", split="test")
-    print(f"Dataset loaded in {time.perf_counter() - t_ds:.1f}s ({len(test_data)} samples)")
+    print(
+        f"Dataset loaded in {time.perf_counter() - t_ds:.1f}s ({len(test_data)} samples)"
+    )
 
     if max_samples:
         test_data = test_data.select(range(min(max_samples, len(test_data))))
@@ -116,7 +118,9 @@ def run_mmlu(
     load_time = time.perf_counter() - t_model
     print(f"Model loaded in {load_time:.1f}s")
     if device.type == "cuda":
-        print(f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
+        print(
+            f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB"
+        )
         metadata["dtype"] = "float16"
         metadata["attention"] = "sdpa"
 
@@ -240,7 +244,9 @@ def run_mmlu(
         print(f"\n--- Benchmark ---")
         print(f"Batches: {n_batches}")
         print(f"Total time: {total_time:.1f}s ({total_time / 60:.1f} min)")
-        print(f"Avg batch: {avg_batch:.2f}s (min: {min_batch:.2f}s, max: {max_batch:.2f}s)")
+        print(
+            f"Avg batch: {avg_batch:.2f}s (min: {min_batch:.2f}s, max: {max_batch:.2f}s)"
+        )
         print(f"Throughput: {throughput:.2f} samples/s")
         print(f"")
     print(f"Done. Saved to {run_dir}")
