@@ -14,18 +14,23 @@ END_THINK_TOKEN_ID = 151668
 ANSWER_PREFIX = """{
     "answer": \""""
 
-DEFAULT_SYSTEM_PROMPT = """Answer the following multiple-choice question. Choose the correct answer from the choices provided.
-Then output ONLY the following JSON (no extra text):
+DEFAULT_SYSTEM_PROMPT = """ Your task is to answer multiple-choice questions.
 
+Instructions:
+- Choose exactly one answer label from the provided options (e.g., A, B, C, D).
+- Do NOT output the full answer text—only the label.
+- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
+  - 0.0 = pure guess
+  - 1.0 = absolutely certain
+
+Output ONLY valid JSON. No extra text!
+
+Format:
 {
-  "answer": <answer label>,
-  "confidence": <float between 0 and 1>
+  "answer": "<answer label>",
+  "confidence": <float>
 }
-
-Rules:
-- answer must be the label of the correct choice
-- confidence must be a float between 0 and 1 (e.g. 0.82)
-- no extra text"""
+"""
 
 MMLU_LABELS = ["A", "B", "C", "D"]
 
@@ -266,8 +271,10 @@ def run_mmlu(
                 "id": f"{b['subject']}_{start + i}",
                 "subject": b["subject"],
                 "question": b["question"],
-                "answer": answer_label,
                 "labels": MMLU_LABELS,
+                "choices": b["choices"],
+                "answer": answer_label,
+                "base_text": b["base_text"],
                 "content": content,
                 "thinking": thinking_texts[i] if thinking else None,
                 "prediction": prediction,
