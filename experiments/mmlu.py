@@ -110,19 +110,18 @@ def run_mmlu(
     tokenizer = AutoTokenizer.from_pretrained(model)
     model = AutoModelForCausalLM.from_pretrained(
         model,
-        torch_dtype=torch.float16,
+        dtype="auto",
         attn_implementation="sdpa",
         device_map="auto",
     )
     model.eval()
     load_time = time.perf_counter() - t_model
     print(f"Model loaded in {load_time:.1f}s")
+    print(f"Model dtype: {model.dtype}")
+    metadata["dtype"] = str(model.dtype)
+    metadata["attention"] = "sdpa"
     if device.type == "cuda":
-        print(
-            f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
-        )
-        metadata["dtype"] = "float16"
-        metadata["attention"] = "sdpa"
+        print(f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
 
     answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
     label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
