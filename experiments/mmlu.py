@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import datetime
 import subprocess
 import time
@@ -12,7 +12,7 @@ from utils import parse_output, print_metadata
 END_THINK_TOKEN_ID = 151668
 
 ANSWER_PREFIX = """{
-    \"answer\": \""""
+    "answer": \""""
 
 DEFAULT_SYSTEM_PROMPT = """Answer the following multiple-choice question. Choose the correct answer from the choices provided.
 Then output ONLY the following JSON (no extra text):
@@ -108,6 +108,12 @@ def run_mmlu(
     print(f"Loading model: {model}")
     t_model = time.perf_counter()
     tokenizer = AutoTokenizer.from_pretrained(model)
+
+    # CRITICAL PERFORMANCE PRIMITIVE: Left padding configuration
+    tokenizer.padding_side = "left"
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     model = AutoModelForCausalLM.from_pretrained(
         model,
         dtype="auto",
@@ -133,7 +139,48 @@ def run_mmlu(
     output_path = os.path.join(run_dir, "outputs.jsonl")
     f_out = open(output_path, "w")
 
-    tokenizer.padding_side = "left"
+    # --- PERFORMANCE FIX: Pre-format and Pre-tokenize Dataset via Batched Map ---
+    print("Pre-processing dataset chat templates and token IDs...")
+    t_prep = time.perf_counter()
+
+    def preprocess_batch(examples):
+        base_texts = []
+        keys = list(examples.keys())
+        num_items = len(examples[keys[0]])
+
+        for i in range(num_items):
+            row = {k: examples[k][i] for k in keys}
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": format_question(row)},
+            ]
+            text = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=thinking,
+            )
+            base_texts.append(text)
+
+        out_dict = {"base_text": base_texts}
+
+        if not thinking:
+            # If thinking is disabled, we can pre-compile the entire execution prompt right here
+            full_texts = [t + ANSWER_PREFIX for t in base_texts]
+            tokenized = tokenizer(full_texts, padding=False, truncation=True)
+            out_dict["input_ids"] = tokenized["input_ids"]
+            out_dict["attention_mask"] = tokenized["attention_mask"]
+        else:
+            # If thinking is enabled, we pre-compile stage 1 (before thinking occurs)
+            tokenized = tokenizer(base_texts, padding=False, truncation=True)
+            out_dict["input_ids"] = tokenized["input_ids"]
+            out_dict["attention_mask"] = tokenized["attention_mask"]
+
+        return out_dict
+
+    test_data = test_data.map(preprocess_batch, batched=True, desc="Mapping dataset")
+    print(f"Dataset pre-processed in {time.perf_counter() - t_prep:.1f}s")
+    # ----------------------------------------------------------------------------
 
     batch_times = []
     total_start = time.perf_counter()
@@ -143,25 +190,14 @@ def run_mmlu(
         end = min(start + batch_size, len(test_data))
         batch = [test_data[i] for i in range(start, end)]
 
-        messages_batch = [
-            [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": format_question(row)},
-            ]
-            for row in batch
-        ]
-
-        texts = tokenizer.apply_chat_template(
-            messages_batch,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=thinking,
-        )
-
-        thinking_texts = None
         if thinking:
-            inputs = tokenizer(
-                texts, return_tensors="pt", padding=True, truncation=True
+            # Fast Tensor Dynamic Padding using pre-tokenized base IDs
+            batch_features = [
+                {"input_ids": b["input_ids"], "attention_mask": b["attention_mask"]}
+                for b in batch
+            ]
+            inputs = tokenizer.pad(
+                batch_features, padding=True, return_tensors="pt"
             ).to(device)
 
             with torch.inference_mode():
@@ -178,16 +214,26 @@ def run_mmlu(
             )
 
             new_texts = [
-                t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX
-                for i, t in enumerate(texts)
+                b["base_text"] + thinking_texts[i] + "\n\n" + ANSWER_PREFIX
+                for i, b in enumerate(batch)
             ]
 
-        else:
-            new_texts = [t + ANSWER_PREFIX for t in texts]
+            # Re-tokenization is required here as text length depends on dynamic thinking generation
+            new_inputs = tokenizer(
+                new_texts, return_tensors="pt", padding=True, truncation=True
+            ).to(device)
 
-        new_inputs = tokenizer(
-            new_texts, return_tensors="pt", padding=True, truncation=True
-        ).to(device)
+        else:
+            # OPTIMIZATION AT WORK: Zero string manipulation, zero text tokenization in this path.
+            # We directly pass the pre-compiled full token sequences into the rapid padding utility.
+            batch_features = [
+                {"input_ids": b["input_ids"], "attention_mask": b["attention_mask"]}
+                for b in batch
+            ]
+            new_inputs = tokenizer.pad(
+                batch_features, padding=True, return_tensors="pt"
+            ).to(device)
+            thinking_texts = None
 
         with torch.inference_mode():
             out = model.generate(
