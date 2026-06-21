@@ -106,21 +106,7 @@ def run_mmlu(
     answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
 
 
-    ## Hyperparameters from the HuggingFace model card for qwen
-    if thinking:
-        gen_kwargs = dict(
-            do_sample=True,
-            temperature=0.6,
-            top_p=0.95,
-            top_k=20,
-        )
-    else:
-        gen_kwargs = dict(
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.8,
-            top_k=20,
-        )
+    gen_kwargs = dict(do_sample=False)
 
     output_path = os.path.join(run_dir, "outputs.jsonl")
     f_out = open(output_path, "w")
@@ -130,7 +116,7 @@ def run_mmlu(
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         end = min(start + batch_size, len(test_data))
-        batch = test_data.select(range(start, end))
+        batch = [test_data[i] for i in range(start, end)]
 
         messages_batch = [
             [
@@ -148,6 +134,7 @@ def run_mmlu(
         )
 
 
+        thinking_texts = None
         if thinking:
             inputs = tokenizer(
                 texts,
@@ -161,11 +148,10 @@ def run_mmlu(
                     **inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
                     max_new_tokens=1000,
-                    return_dict_in_generate=True,
                     **gen_kwargs,
                 )
 
-            thinking_sequences = out.sequences[:, inputs["input_ids"].shape[1]:]
+            thinking_sequences = out[:, inputs["input_ids"].shape[1]:]
             thinking_texts = tokenizer.batch_decode(thinking_sequences, skip_special_tokens=True)
 
             new_texts = [ t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX for i, t in enumerate(texts) ]
@@ -180,12 +166,11 @@ def run_mmlu(
             truncation=True
         ).to(device)
 
+        label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
         with torch.inference_mode():
              logits = model(**new_inputs).logits
              label_probs = []
-             for i, b in enumerate(batch):
-                 labels = MMLU_LABELS
-                 label_ids = tokenizer.convert_tokens_to_ids(labels)
+             for i in range(len(batch)):
                  label_probs.append(logits[i, -1, label_ids].softmax(dim=-1).tolist())
 
 
@@ -193,12 +178,10 @@ def run_mmlu(
             out = model.generate(
                 **new_inputs,
                 max_new_tokens=100,
-                return_dict_in_generate=True,
                 **gen_kwargs,
             )
 
-        sequences = out.sequences
-        content_sequences = sequences[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+        content_sequences = out[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
 
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
@@ -227,9 +210,6 @@ def run_mmlu(
             json.dump(output, f_out)
             f_out.write("\n")
             
-        # Cleanup per batch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
     
     f_out.close()
 
