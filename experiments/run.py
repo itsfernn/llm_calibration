@@ -2,12 +2,15 @@
 import argparse
 from gsm8k import run_gsm8k
 from ai2_arc import run_ai2_arc
+from mmlu import run_mmlu
 
 def run_dataset(dataset_name, **kwargs):
     if dataset_name == "gsm8k":
         return run_gsm8k(**kwargs)
     elif dataset_name == "ai2_arc":
         return run_ai2_arc(**kwargs)
+    elif dataset_name == "mmlu":
+        return run_mmlu(**kwargs)
     else:
         raise ValueError(f"Unsupported dataset: {dataset_name}")
 
