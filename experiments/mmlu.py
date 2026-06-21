@@ -18,7 +18,7 @@ DEFAULT_SYSTEM_PROMPT = """Answer the following multiple-choice question. Choose
 Then output ONLY the following JSON (no extra text):
 
 {
-  "answer": <final numeric answer>,
+  "answer": <answer label>,
   "confidence": <float between 0 and 1>
 }
 
@@ -29,17 +29,19 @@ Rules:
 
 MMLU_LABELS = ["A", "B", "C", "D"]
 
+
 def format_question(q):
     lines = []
 
-    lines.append(q.get('question', ''))
+    lines.append(q.get("question", ""))
     lines.append("")
 
-    choices = q.get('choices', [])
+    choices = q.get("choices", [])
     for label, text in zip(MMLU_LABELS, choices):
         lines.append(f"{label}. {text}")
 
     return "\n".join(lines)
+
 
 def run_mmlu(
     model,
@@ -48,11 +50,11 @@ def run_mmlu(
     out_dir="out_runs",
     max_samples=None,
     thinking=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Run MMLU evaluation on a model.
-    
+
     Outputs are written to `run_dir/outputs.jsonl` (JSON lines format).
     Returns the path to the run directory.
     """
@@ -72,13 +74,13 @@ def run_mmlu(
         "timestamp": run_timestamp,
         "device": str(device),
         "max_samples": max_samples,
-        "system_prompt": system_prompt
+        "system_prompt": system_prompt,
     }
 
     try:
-        metadata["git_commit"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"]
-        ).decode().strip()
+        metadata["git_commit"] = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+        )
     except Exception:
         metadata["git_commit"] = "unknown"
 
@@ -95,16 +97,10 @@ def run_mmlu(
 
     # Model
     tokenizer = AutoTokenizer.from_pretrained(model)
-    model = AutoModelForCausalLM.from_pretrained(
-        model,
-        dtype="auto",
-        device_map="auto"
-    )
+    model = AutoModelForCausalLM.from_pretrained(model, dtype="auto", device_map="auto")
     model.eval()
 
-
     answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
-
 
     gen_kwargs = dict(do_sample=False)
 
@@ -112,7 +108,6 @@ def run_mmlu(
     f_out = open(output_path, "w")
 
     tokenizer.padding_side = "left"
-
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         end = min(start + batch_size, len(test_data))
@@ -133,14 +128,10 @@ def run_mmlu(
             enable_thinking=thinking,
         )
 
-
         thinking_texts = None
         if thinking:
             inputs = tokenizer(
-                texts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True
+                texts, return_tensors="pt", padding=True, truncation=True
             ).to(device)
 
             with torch.inference_mode():
@@ -151,28 +142,29 @@ def run_mmlu(
                     **gen_kwargs,
                 )
 
-            thinking_sequences = out[:, inputs["input_ids"].shape[1]:]
-            thinking_texts = tokenizer.batch_decode(thinking_sequences, skip_special_tokens=True)
+            thinking_sequences = out[:, inputs["input_ids"].shape[1] :]
+            thinking_texts = tokenizer.batch_decode(
+                thinking_sequences, skip_special_tokens=True
+            )
 
-            new_texts = [ t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX for i, t in enumerate(texts) ]
+            new_texts = [
+                t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX
+                for i, t in enumerate(texts)
+            ]
 
         else:
-            new_texts = [ t + ANSWER_PREFIX  for t in texts ]
+            new_texts = [t + ANSWER_PREFIX for t in texts]
 
         new_inputs = tokenizer(
-            new_texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True
+            new_texts, return_tensors="pt", padding=True, truncation=True
         ).to(device)
 
         label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
         with torch.inference_mode():
-             logits = model(**new_inputs).logits
-             label_probs = []
-             for i in range(len(batch)):
-                 label_probs.append(logits[i, -1, label_ids].softmax(dim=-1).tolist())
-
+            logits = model(**new_inputs).logits
+            label_probs = []
+            for i in range(len(batch)):
+                label_probs.append(logits[i, -1, label_ids].softmax(dim=-1).tolist())
 
         with torch.inference_mode():
             out = model.generate(
@@ -181,12 +173,15 @@ def run_mmlu(
                 **gen_kwargs,
             )
 
-        content_sequences = out[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+        content_sequences = out[
+            :, new_inputs["input_ids"].shape[1] - answer_prefix_len :
+        ]
 
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
-            content = tokenizer.decode(content_ids, skip_special_tokens=True).strip("\n")
-
+            content = tokenizer.decode(content_ids, skip_special_tokens=True).strip(
+                "\n"
+            )
 
             # Extract answer
             output = parse_output(content)
@@ -205,12 +200,11 @@ def run_mmlu(
                 "thinking": thinking_texts[i] if thinking else None,
                 "prediction": prediction,
                 "label_probs": label_probs[i],
-                "verb_conf": confidence
+                "verb_conf": confidence,
             }
             json.dump(output, f_out)
             f_out.write("\n")
-            
-    
+
     f_out.close()
 
     print(f"Done. Saved to {run_dir}")
