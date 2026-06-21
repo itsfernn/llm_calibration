@@ -14,6 +14,33 @@ def expected_calibration_error(y_true, y_prob, n_bins=10):
 
     return ece
 
+def bootstrap_ece(y_true, y_prob, n_bins=10, n_bootstrap=1000, seed=None):
+    rng = np.random.default_rng(seed)
+    n = len(y_true)
+
+    ece_boot = []
+
+    for _ in range(n_bootstrap):
+        idx = rng.choice(n, size=n, replace=True)
+        ece_b = expected_calibration_error(y_true[idx], y_prob[idx], n_bins)
+        ece_boot.append(ece_b)
+
+    ece_boot = np.array(ece_boot)
+
+    ece = expected_calibration_error(y_true, y_prob, n_bins)
+    se = np.std(ece_boot, ddof=1)
+
+    # 95% percentile CI
+    ci_lower = np.percentile(ece_boot, 2.5)
+    ci_upper = np.percentile(ece_boot, 97.5)
+
+    return {
+        "ece": ece,
+        "se": se,
+        "ci_95": (ci_lower, ci_upper),
+        "bootstrap_samples": ece_boot
+    }
+
 def calculate_metrics(y_true, y_prob):
     """
     Calculate various metrics for binary classification.
@@ -30,6 +57,7 @@ def calculate_metrics(y_true, y_prob):
         "brier_score": brier,
         "roc_auc": auc,
         "average_precision": ap,
+        "auc"
         "ece": ece
     }
 

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import log_loss
 
 from .utils import compute_bin_stats
@@ -75,6 +76,7 @@ def histogram_scaling(
 
 from sklearn.isotonic import IsotonicRegression
 
+
 def isotonic_scaling(
     probs_train,
     probs_test,
@@ -124,7 +126,20 @@ def isotonic_scaling(
 
     return (probs_cal, model) if return_model else probs_cal
 
+def logistic_regression(X_train, X_test, y_train, return_model=False):
+    X_train = np.asarray(X_train, dtype=float)
+    X_test  = np.asarray(X_test,  dtype=float)
+    y_train = np.asarray(y_train, dtype=int)
 
+    scaler  = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test  = scaler.transform(X_test)
+
+    model = LogisticRegression(C=1, solver="lbfgs", max_iter=1000)
+    model.fit(X_train, y_train)
+
+    probs_cal = model.predict_proba(X_test)[:, 1]
+    return (probs_cal, model) if return_model else probs_cal
 
 def platt_scaling(
     probs_train, probs_test, y_train, eps=1e-6, clip=True, return_model=False
@@ -165,7 +180,7 @@ def platt_scaling(
 
     # Fit a simple logistic regression (maps logit -> calibrated prob)
     # Use very large C to approximate no regularization (platt scaling is just a logistic fit).
-    model = LogisticRegression(C=1e6, solver="lbfgs", max_iter=1000)
+    model = LogisticRegression(C=1, solver="lbfgs", max_iter=1000)
     model.fit(logits_train, y_train)
 
     probs_cal = model.predict_proba(logits_test)[:, 1]
