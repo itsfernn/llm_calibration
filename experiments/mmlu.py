@@ -121,7 +121,9 @@ def run_mmlu(
     metadata["dtype"] = str(model.dtype)
     metadata["attention"] = "sdpa"
     if device.type == "cuda":
-        print(f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
+        print(
+            f"GPU memory used after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB / {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB"
+        )
 
     answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
     label_ids = tokenizer.convert_tokens_to_ids(MMLU_LABELS)
