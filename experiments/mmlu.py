@@ -248,7 +248,8 @@ def run_mmlu(
                 return_dict_in_generate=True,
                 **gen_kwargs,
             )
-            label_probs = out.scores[0][:, label_ids].softmax(dim=-1).tolist()
+            probs = torch.nn.functional.softmax(out.scores[0], dim=-1)
+            label_probs = probs[:, label_ids].cpu().numpy()
 
         content_sequences = out.sequences[
             :, new_inputs["input_ids"].shape[1] - answer_prefix_len :
