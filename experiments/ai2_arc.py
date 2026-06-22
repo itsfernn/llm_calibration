@@ -113,7 +113,7 @@ def run_ai2_arc(
     model = AutoModelForCausalLM.from_pretrained(
         model,
         dtype="auto",
-        attention_implementation="sdpa",
+        attn_implementation="sdpa",
         device_map="auto",
     )
 
@@ -252,9 +252,9 @@ def run_ai2_arc(
             )
 
             # Extract answer
-            output = parse_output(content)
-            prediction = output["answer"]
-            confidence = output["confidence"]
+            parsed = parse_output(content)
+            prediction = parsed["answer"]
+            confidence = parsed["confidence"]
 
             output = {
                 "id": b["id"],
