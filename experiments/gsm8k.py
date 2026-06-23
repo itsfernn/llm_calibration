@@ -14,38 +14,61 @@ END_THINK_TOKEN_ID = 151668
 ANSWER_PREFIX = """{
   "answer": """
 
-DEFAULT_SYSTEM_PROMPT = """Solve the following math problem.
+THINKING_PROMPT = """You are an expert mathematical assistant. 
 
-Please reason step by step, and put your final answer within  \\boxed{}.
+Instructions:
+- First solve the problem step-by-step.
+- Once your thoughts are complete, provide your final response.
+- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
+  - 0.0 = pure guess
+  - 1.0 = absolutely certain
 
-Then output ONLY the following JSON (no extra text):
+Your final response should ONLY valid JSON. No extra text!
 
+Format:
 {
   "answer": <final numeric answer>,
-  "confidence": <float between 0 and 1>
-}
+  "confidence": <float>
+}"""
 
-Rules:
-- The answer must exactly match the value inside \\boxed{}.
-- Confidence must be a decimal between 0 and 1 (e.g., 0.82).
-- Do not include units in the answer.
-- Do not include any explanation inside or after the JSON."""
+
+NON_THINKING_PROMPT = """You are a direct mathematical calculator.
+
+Instructions:
+- Solve the problem directly.
+- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
+  - 0.0 = pure guess
+  - 1.0 = absolutely certain
+
+Output ONLY valid JSON. No extra text!
+
+Format:
+{
+  "answer": <final numeric answer>,
+  "confidence": <float>
+}"""
+
 
 def score_sequences(model, sequences):
     """
-    Compute logprobs for actual tokens in sequences (prompt + generation)
-    Returns token_logprobs tensor of shape (batch, seq_len-1)
+    Compute logprobs for every token in the sequence (prompt + generation).
+    Returns a token_logprobs tensor of shape (batch, seq_len - 1)
     """
-    with torch.no_grad():
-        outputs = model(input_ids=sequences)
+    with torch.inference_mode():
+        # FIX 1: Add .logits to capture the raw tensor from the output object
+        outputs = model(sequences)
+        logits = outputs.logits
 
-    logits = outputs.logits[:, :-1, :]
-    targets = sequences[:, 1:]
+    # Standard causal alignment shift
+    # Logit at index t predicts token at index t + 1
+    shift_logits = logits[:, :-1, :]
+    shift_targets = sequences[:, 1:]
 
-    log_probs = F.log_softmax(logits, dim=-1)
-    token_logprobs = log_probs.gather(2, targets.unsqueeze(-1)).squeeze(-1)
+    log_probs = F.log_softmax(shift_logits, dim=-1)
+    token_logprobs = log_probs.gather(2, shift_targets.unsqueeze(-1)).squeeze(-1)
 
     return token_logprobs
+
 
 def run_gsm8k(
     model,
@@ -53,12 +76,13 @@ def run_gsm8k(
     thinking,
     out_dir="out_runs",
     max_samples=None,
-    system_prompt=DEFAULT_SYSTEM_PROMPT,
-    **kwargs
+    system_prompt=None,
+    debug=False,
+    **kwargs,
 ):
     """
     Run GSM8K evaluation on a model.
-    
+
     Outputs are written to `run_dir/outputs.jsonl` (JSON lines format).
     Returns the path to the run directory.
     """
@@ -69,6 +93,10 @@ def run_gsm8k(
     run_dir = os.path.join(out_dir, f"run_{run_timestamp}")
     os.makedirs(run_dir, exist_ok=True)
 
+    # set system prompt if not provided
+    if system_prompt is None:
+        system_prompt = THINKING_PROMPT if thinking else NON_THINKING_PROMPT
+
     # Metadata
     metadata = {
         "model": model,
@@ -77,13 +105,13 @@ def run_gsm8k(
         "system_prompt": system_prompt,
         "timestamp": run_timestamp,
         "device": str(device),
-        "max_samples": max_samples
+        "max_samples": max_samples,
     }
 
     try:
-        metadata["git_commit"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"]
-        ).decode().strip()
+        metadata["git_commit"] = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"]).decode().strip()
+        )
     except Exception:
         metadata["git_commit"] = "unknown"
 
@@ -100,16 +128,15 @@ def run_gsm8k(
 
     # Model
     tokenizer = AutoTokenizer.from_pretrained(model)
-    model = AutoModelForCausalLM.from_pretrained(
-        model,
-        dtype="auto",
-        device_map="auto"
-    )
+    tokenizer.padding_side = "left"
+
+    model = AutoModelForCausalLM.from_pretrained(model, dtype="auto", device_map="auto")
     model.eval()
 
-
-    answer_prefix_len = len(tokenizer(ANSWER_PREFIX)["input_ids"])
-
+    answer_prefix_ids = tokenizer.encode(
+        "\n" + ANSWER_PREFIX,
+        add_special_tokens=False,
+    )
 
     ## Hyperparameters from the HuggingFace model card for qwen
     if thinking:
@@ -127,85 +154,120 @@ def run_gsm8k(
             top_k=20,
         )
 
+    def preprocess_batch(examples):
+        base_texts = []
+        for q in examples["question"]:
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": q},
+            ]
+            text = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=thinking,
+            )
+            base_texts.append(text)
+
+        out_dict = {"base_text": base_texts}
+        if not thinking:
+            # If not thinking, we can directly append the answer prefix to the base texts and tokenize
+            full_texts = [t + ANSWER_PREFIX for t in base_texts]
+            tokenized = tokenizer(full_texts, padding=False, truncation=True)
+            out_dict["input_ids"] = tokenized["input_ids"]
+            out_dict["attention_mask"] = tokenized["attention_mask"]
+        else:
+            # Tokenize base texts for thinking step
+            tokenized_base = tokenizer(base_texts, padding=False, truncation=True)
+            out_dict["base_input_ids"] = tokenized_base["input_ids"]
+            out_dict["base_attention_mask"] = tokenized_base["attention_mask"]
+        return out_dict
+
+    test_data = test_data.map(preprocess_batch, batched=True, batch_size=batch_size)
+
     output_path = os.path.join(run_dir, "outputs.jsonl")
     f_out = open(output_path, "w")
-
-    tokenizer.padding_side = "left"
-    
 
     for start in tqdm(range(0, len(test_data), batch_size), desc="Batches"):
         end = min(start + batch_size, len(test_data))
         batch = test_data.select(range(start, end))
 
-        messages_batch = [
-            [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": q },
-            ]
-            for q in batch["question"]
-        ]
-
-        texts = tokenizer.apply_chat_template(
-            messages_batch,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=thinking,
-        )
-
-
-
         if thinking:
-            inputs = tokenizer(
-                texts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True
+            batch_features = [
+                {
+                    "input_ids": b["base_input_ids"],
+                    "attention_mask": b["base_attention_mask"],
+                }
+                for b in batch
+            ]
+
+            thinking_inputs = tokenizer.pad(
+                batch_features, return_tensors="pt", padding=True
             ).to(device)
 
             with torch.inference_mode():
                 out = model.generate(
-                    **inputs,
+                    **thinking_inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
-                    max_new_tokens=500,
+                    max_new_tokens=1000,
                     return_dict_in_generate=True,
                     **gen_kwargs,
                 )
 
-            thinking_sequences = out.sequences[:, inputs["input_ids"].shape[1]:]
-            thinking_texts = tokenizer.batch_decode(thinking_sequences, skip_special_tokens=True)
+            final_inputs = torch.cat(
+                [
+                    out.sequences,
+                    torch.tensor(answer_prefix_ids, device=out.sequences.device)
+                    .unsqueeze(0)
+                    .expand(out.sequences.shape[0], -1),
+                ],
+                dim=1,
+            )
 
-            new_texts = [ t + thinking_texts[i] + "\n\n" + ANSWER_PREFIX for i, t in enumerate(texts) ]
+            thinking_ids = out.sequences[:, thinking_inputs["input_ids"].shape[1] :]
+            thinking_texts = tokenizer.batch_decode(
+                thinking_ids, skip_special_tokens=True
+            )
 
+            if debug:
+                final_input_text_debug = tokenizer.batch_decode(
+                    final_inputs, skip_special_tokens=False
+                )
+                print(
+                    f"New texts for answer generation (debug): {final_input_text_debug}"
+                )
         else:
-            new_texts = [ t + ANSWER_PREFIX  for t in texts ]
-
-        new_inputs = tokenizer(
-            new_texts,
-            return_tensors="pt",
-            padding=True,
-            truncation=True
-        ).to(device)
+            batch_features = [
+                {"input_ids": b["input_ids"], "attention_mask": b["attention_mask"]}
+                for b in batch
+            ]
+            final_inputs = tokenizer.pad(
+                batch_features, return_tensors="pt", padding=True
+            ).to(device)
+            thinking_texts = None
 
         with torch.inference_mode():
             out = model.generate(
-                **new_inputs,
-                max_new_tokens=500,
-                return_dict_in_generate=True,
+                **final_inputs,
+                max_new_tokens=100,
                 **gen_kwargs,
             )
 
-        sequences = out.sequences
-        content_sequences = sequences[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
-        content_texts = tokenizer.batch_decode(content_sequences, skip_special_tokens=True)
+        input_len = final_inputs["input_ids"].shape[1] - len(answer_prefix_ids)
 
-        output_log_probs = score_sequences(model, sequences)[:, new_inputs["input_ids"].shape[1] - answer_prefix_len:]
+        content_sequences = out[:, input_len:]
+
+        content_texts = tokenizer.batch_decode(
+            content_sequences, skip_special_tokens=True
+        )
+
+        log_probs = score_sequences(model, out)
 
         outputs = []
         for i, b in enumerate(batch):
-            content_ids = content_sequences[i].tolist()
             content = content_texts[i]
+            content_ids = content_sequences[i].tolist()
 
-            # Extract answer
             output = parse_output(content)
             prediction = output["answer"]
             confidence = output["confidence"]
@@ -213,23 +275,35 @@ def run_gsm8k(
             prediction_logprobs = []
 
             if prediction is not None:
-                prediction_ids = tokenizer(prediction)["input_ids"]
+                # Find where the prediction string lives inside the decoded content
+                start_idx = content.find(prediction)
 
-                start_idx = find_subsequence(content_ids, prediction_ids)
+                if start_idx != -1:
+                    end_idx = start_idx + len(prediction)
+                    current_len = 0
 
-                if start_idx is not None:
-                    for t, token_id in enumerate(prediction_ids):
-                        step_idx = start_idx + t
-                        
-                        # Verify token matches
-                        if content_ids[step_idx] != token_id:
-                            # Token mismatch, skip this prediction
-                            print(f"Warning: Token mismatch at position {step_idx}: expected {token_id}, got {content_ids[step_idx]}")
-                            prediction_logprobs = []
+                    # Step through tokens progressively
+                    for step_idx, token_id in enumerate(content_ids):
+                        if current_len >= end_idx:
                             break
-                        
-                        lp = output_log_probs[i, step_idx]
-                        prediction_logprobs.append(lp.item())
+
+                        extended_text = tokenizer.decode(
+                            content_ids[: step_idx + 1], skip_special_tokens=True
+                        )
+                        next_len = len(extended_text)
+
+                        if next_len > start_idx and current_len < end_idx:
+                            global_token_idx = input_len + step_idx
+
+                            if global_token_idx > 0:
+                                lp = log_probs[i, global_token_idx - 1].item()
+                                prediction_logprobs.append(lp)
+
+                        current_len = next_len
+                else:
+                    print(
+                        f"Warning: Prediction '{prediction}' not found in decoded text."
+                    )
 
             output = {
                 "index": start + i,
@@ -239,14 +313,14 @@ def run_gsm8k(
                 "thinking": thinking_texts[i] if thinking else None,
                 "prediction": prediction,
                 "logprobs": prediction_logprobs,
-                "verb_conf": confidence
+                "verb_conf": confidence,
             }
             outputs.append(output)
 
         for o in outputs:
             json.dump(o, f_out)
         f_out.write("\n")
-    
+
     f_out.close()
 
     print(f"Done. Saved to {run_dir}")
