@@ -276,7 +276,7 @@ def run_gsm8k(
             "attention_mask": (out != tokenizer.pad_token_id).long(),
         }
 
-        log_probs = score_sequences(out_features)
+        log_probs = score_sequences(model, out_features)
 
         outputs = []
         for i, b in enumerate(batch):
