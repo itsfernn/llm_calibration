@@ -273,6 +273,7 @@ def run_gsm8k(
             confidence = output["confidence"]
 
             prediction_logprobs = []
+            prediction_tokens = []
 
             if prediction is not None:
                 # Find where the prediction string lives inside the decoded content
@@ -293,6 +294,8 @@ def run_gsm8k(
                         next_len = len(extended_text)
 
                         if next_len > start_idx and current_len < end_idx:
+                            prediction_tokens.append(content_ids[step_idx])
+
                             global_token_idx = input_len + step_idx
 
                             if global_token_idx > 0:
@@ -304,6 +307,12 @@ def run_gsm8k(
                     print(
                         f"Warning: Prediction '{prediction}' not found in decoded text."
                     )
+
+            if debug:
+                prediciton_decoded = tokenizer.decode(
+                    prediction_tokens, skip_special_tokens=False
+                )
+                print(prediciton_decoded)
 
             output = {
                 "index": start + i,
