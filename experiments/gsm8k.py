@@ -49,20 +49,21 @@ Format:
 }"""
 
 
-def score_sequences(model, sequences):
+def score_sequences(model, inputs):
     """
     Compute logprobs for every token in the sequence (prompt + generation).
     Returns a token_logprobs tensor of shape (batch, seq_len - 1)
     """
+
     with torch.inference_mode():
         # FIX 1: Add .logits to capture the raw tensor from the output object
-        outputs = model(input_ids=sequences)
+        outputs = model(inputs)
         logits = outputs.logits
 
     # Standard causal alignment shift
     # Logit at index t predicts token at index t + 1
     shift_logits = logits[:, :-1, :]
-    shift_targets = sequences[:, 1:]
+    shift_targets = inputs["inputs_ids"][:, 1:]
 
     log_probs = F.log_softmax(shift_logits, dim=-1)
     token_logprobs = log_probs.gather(2, shift_targets.unsqueeze(-1)).squeeze(-1)
@@ -129,6 +130,8 @@ def run_gsm8k(
     # Model
     tokenizer = AutoTokenizer.from_pretrained(model)
     tokenizer.padding_side = "left"
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
 
     model = AutoModelForCausalLM.from_pretrained(model, dtype="auto", device_map="auto")
     model.eval()
@@ -214,7 +217,7 @@ def run_gsm8k(
                     **gen_kwargs,
                 )
 
-            final_inputs = torch.cat(
+            final_ids = torch.cat(
                 [
                     out.sequences,
                     torch.tensor(answer_prefix_ids, device=out.sequences.device)
@@ -223,6 +226,13 @@ def run_gsm8k(
                 ],
                 dim=1,
             )
+
+            final_attention_mask = (final_ids != tokenizer.pad_token).long()
+
+            final_inputs = {
+                "input_ids": final_ids,
+                "attention_mask": final_attention_mask,
+            }
 
             thinking_ids = out.sequences[:, thinking_inputs["input_ids"].shape[1] :]
             thinking_texts = tokenizer.batch_decode(
@@ -261,7 +271,12 @@ def run_gsm8k(
             content_sequences, skip_special_tokens=True
         )
 
-        log_probs = score_sequences(model, out)
+        out_features = {
+            "input_ids": out,
+            "attention_mask": (out != tokenizer.pad_token).long(),
+        }
+
+        log_probs = score_sequences(out_features)
 
         outputs = []
         for i, b in enumerate(batch):
