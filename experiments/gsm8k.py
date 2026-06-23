@@ -63,7 +63,7 @@ def score_sequences(model, inputs):
     # Standard causal alignment shift
     # Logit at index t predicts token at index t + 1
     shift_logits = logits[:, :-1, :]
-    shift_targets = inputs["inputs_ids"][:, 1:]
+    shift_targets = inputs["input_ids"][:, 1:]
 
     log_probs = F.log_softmax(shift_logits, dim=-1)
     token_logprobs = log_probs.gather(2, shift_targets.unsqueeze(-1)).squeeze(-1)
