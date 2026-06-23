@@ -241,7 +241,7 @@ def run_gsm8k(
 
             if debug:
                 final_input_text_debug = tokenizer.batch_decode(
-                    final_inputs, skip_special_tokens=False
+                    final_ids, skip_special_tokens=False
                 )
                 print(
                     f"New texts for answer generation (debug): {final_input_text_debug}"
