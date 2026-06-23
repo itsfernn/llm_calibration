@@ -227,7 +227,7 @@ def run_gsm8k(
                 dim=1,
             )
 
-            final_attention_mask = (final_ids != tokenizer.pad_token).long()
+            final_attention_mask = (final_ids != tokenizer.pad_token_id).long()
 
             final_inputs = {
                 "input_ids": final_ids,
@@ -273,7 +273,7 @@ def run_gsm8k(
 
         out_features = {
             "input_ids": out,
-            "attention_mask": (out != tokenizer.pad_token).long(),
+            "attention_mask": (out != tokenizer.pad_token_id).long(),
         }
 
         log_probs = score_sequences(out_features)
