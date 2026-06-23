@@ -56,7 +56,7 @@ def score_sequences(model, sequences):
     """
     with torch.inference_mode():
         # FIX 1: Add .logits to capture the raw tensor from the output object
-        outputs = model(sequences)
+        outputs = model(input_ids=sequences)
         logits = outputs.logits
 
     # Standard causal alignment shift
