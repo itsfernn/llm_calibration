@@ -2,19 +2,20 @@ import json
 import re
 import torch
 
+
 def print_metadata(metadata):
     print(f"Running evaluation with model: {metadata['model']}")
     print(f"Batch size: {metadata['batch_size']}")
     print(f"Thinking (step-by-step reasoning): {metadata['thinking']}")
     print(f"System prompt: {metadata['system_prompt']}")
     print(f"Device: {metadata['device']}")
-    if metadata['git_commit']:
+    if metadata["git_commit"]:
         print(f"Git commit: {metadata['git_commit']}")
 
 
 def find_subsequence(sequence, subsequence):
     for i in range(len(sequence) - len(subsequence) + 1):
-        if sequence[i:i + len(subsequence)] == subsequence:
+        if sequence[i : i + len(subsequence)] == subsequence:
             return i
     return None
 
@@ -23,10 +24,10 @@ def parse_output(text):
     """
     Parses model output for:
       - answer (string or number)
-      - confidence (float in [0,1])
+      - confidence (string label or float in [0,1])
 
     Returns:
-        dict with keys: {"answer": str or None, "confidence": float or None}
+        dict with keys: {"answer": str or None, "confidence": str/float/None}
     """
 
     result = {"answer": None, "confidence": None}
@@ -37,7 +38,7 @@ def parse_output(text):
     # ----------------------------
     # 1. Try to extract JSON block
     # ----------------------------
-    json_candidates = re.findall(r'\{.*?\}', text, re.DOTALL)
+    json_candidates = re.findall(r"\{.*?\}", text, re.DOTALL)
 
     for candidate in reversed(json_candidates):  # prefer last JSON block
         try:
@@ -46,7 +47,7 @@ def parse_output(text):
                 if "answer" in parsed:
                     result["answer"] = str(parsed["answer"]).strip()
                 if "confidence" in parsed:
-                    result["confidence"] = float(parsed["confidence"])
+                    result["confidence"] = parsed["confidence"]
                 if result["answer"] or result["confidence"] is not None:
                     return result
         except:
@@ -70,7 +71,7 @@ def parse_output(text):
                 if "answer" in parsed:
                     result["answer"] = str(parsed["answer"]).strip()
                 if "confidence" in parsed:
-                    result["confidence"] = float(parsed["confidence"])
+                    result["confidence"] = parsed["confidence"]
                 if result["answer"] or result["confidence"] is not None:
                     return result
         except:
@@ -94,24 +95,26 @@ def parse_output(text):
 
     # confidence patterns
     confidence_patterns = [
+        r'"confidence"\s*:\s*"?(Certain|Probable|Possible|Doubtful|Guess)"?',
         r'"confidence"\s*:\s*([0-9]*\.?[0-9]+)',
-        r'confidence\s*[:=]\s*([0-9]*\.?[0-9]+)',
+        r"confidence\s*[:=]\s*([0-9]*\.?[0-9]+)",
     ]
 
     for pattern in confidence_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
+            value = match.group(1)
             try:
-                result["confidence"] = float(match.group(1))
-            except:
-                pass
+                result["confidence"] = float(value)
+            except (ValueError, TypeError):
+                result["confidence"] = value
             break
 
     # ----------------------------
     # 5. Normalize confidence
     # ----------------------------
     if result["confidence"] is not None:
-        # clamp to [0,1]
-        result["confidence"] = max(0.0, min(1.0, result["confidence"]))
+        if isinstance(result["confidence"], (int, float)):
+            result["confidence"] = max(0.0, min(1.0, result["confidence"]))
 
     return result

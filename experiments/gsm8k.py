@@ -19,16 +19,19 @@ THINKING_PROMPT = """You are an expert mathematical assistant.
 Instructions:
 - First solve the problem step-by-step.
 - Once your thoughts are complete, provide your final response.
-- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
-  - 0.0 = pure guess
-  - 1.0 = absolutely certain
+- Estimate your confidence in the correctness of your answer using exactly one of the following labels:
+  - "Certain": Standard textbook logic; I have verified the arithmetic and found zero edge cases.
+  - "Probable": The methodology is solid, but the calculation is complex enough that a minor arithmetic slip is possible.
+  - "Possible": I am relying on a formula or theorem that I am not 100% sure applies here.
+  - "Doubtful": I am missing key information or context, but this is my best logical deduction.
+  - "Guess": Pure intuition; highly likely to contain an error.
 
 Your final response should ONLY valid JSON. No extra text!
 
 Format:
 {
   "answer": <final numeric answer>,
-  "confidence": <float>
+  "confidence": "<one of: Certain, Probable, Possible, Doubtful, Guess>"
 }"""
 
 
@@ -36,17 +39,29 @@ NON_THINKING_PROMPT = """You are a direct mathematical calculator.
 
 Instructions:
 - Solve the problem directly.
-- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
-  - 0.0 = pure guess
-  - 1.0 = absolutely certain
+- Estimate your confidence in the correctness of your answer using exactly one of the following labels:
+  - "Certain": Standard textbook logic; I have verified the arithmetic and found zero edge cases.
+  - "Probable": The methodology is solid, but the calculation is complex enough that a minor arithmetic slip is possible.
+  - "Possible": I am relying on a formula or theorem that I am not 100% sure applies here.
+  - "Doubtful": I am missing key information or context, but this is my best logical deduction.
+  - "Guess": Pure intuition; highly likely to contain an error.
 
 Output ONLY valid JSON. No extra text!
 
 Format:
 {
   "answer": <final numeric answer>,
-  "confidence": <float>
+  "confidence": "<one of: Certain, Probable, Possible, Doubtful, Guess>"
 }"""
+
+
+CONFIDENCE_MAP = {
+    "Certain": 1.0,
+    "Probable": 0.75,
+    "Possible": 0.5,
+    "Doubtful": 0.25,
+    "Guess": 0.0,
+}
 
 
 def score_sequences(model, inputs):
@@ -278,7 +293,13 @@ def run_gsm8k(
 
             output = parse_output(content)
             prediction = output["answer"]
-            confidence = output["confidence"]
+            confidence_raw = output["confidence"]
+            if isinstance(confidence_raw, str):
+                confidence = CONFIDENCE_MAP.get(confidence_raw, None)
+            elif isinstance(confidence_raw, (int, float)):
+                confidence = confidence_raw / 100.0
+            else:
+                confidence = None
 
             prediction_logprobs = []
             prediction_tokens = []
