@@ -239,15 +239,6 @@ def run_gsm8k(
                 thinking_ids, skip_special_tokens=True
             )
 
-            if debug:
-                for t in thinking_texts:
-                    print(f"Thinking for {len(t.split(' '))} tokens")
-                final_input_text_debug = tokenizer.batch_decode(
-                    final_inputs["input_ids"], skip_special_tokens=False
-                )
-                print(
-                    f"New texts for answer generation (debug): {final_input_text_debug}"
-                )
         else:
             batch_features = [
                 {"input_ids": b["input_ids"], "attention_mask": b["attention_mask"]}
@@ -272,22 +263,6 @@ def run_gsm8k(
         content_texts = tokenizer.batch_decode(
             content_sequences, skip_special_tokens=True
         )
-
-        if debug:
-            for i, b in enumerate(batch):
-                print(f"Question: {b['question']}")
-                print(f"Answer: {b['answer']}")
-                print(f"Content: {content_texts[i]}")
-                if thinking:
-                    print(f"Thinking: {thinking_texts[i]}")
-
-                # print full output with special tokens
-                full_output = tokenizer.decode(
-                    out[i],
-                    skip_special_tokens=False,
-                    clean_up_tokenization_spaces=False,
-                )
-                print(f"Full output (with special tokens): {full_output}")
 
         out_features = {
             "input_ids": out,
@@ -341,12 +316,6 @@ def run_gsm8k(
                         f"Warning: Prediction '{prediction}' not found in decoded text."
                     )
 
-            if debug:
-                prediciton_decoded = tokenizer.decode(
-                    prediction_tokens, skip_special_tokens=False
-                )
-                print(prediciton_decoded)
-
             output = {
                 "index": start + i,
                 "question": b["question"],
@@ -358,6 +327,21 @@ def run_gsm8k(
                 "verb_conf": confidence,
             }
             outputs.append(output)
+
+        if debug:
+            for o in outputs:
+                print(f"--- Sample {o['index']} ---")
+                print(f"Question: {o['question']}")
+                print(f"Ground truth: {o['answer']}")
+                if thinking:
+                    print(f"Thinking: {o['thinking']}")
+                print(f"Generated: {o['content']}")
+                print(f"Prediction: {o['prediction']} (confidence: {o['verb_conf']})")
+                if o["logprobs"]:
+                    avg_lp = sum(o["logprobs"]) / len(o["logprobs"])
+                    print(f"Logprobs: avg={avg_lp:.4f}, tokens={len(o['logprobs'])}")
+                else:
+                    print("Logprobs: none")
 
         for o in outputs:
             json.dump(o, f_out)
