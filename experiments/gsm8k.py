@@ -213,35 +213,35 @@ def run_gsm8k(
                     **thinking_inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
                     max_new_tokens=1000,
-                    return_dict_in_generate=True,
                     **gen_kwargs,
                 )
 
-            final_ids = torch.cat(
-                [
-                    out.sequences,
-                    torch.tensor(answer_prefix_ids, device=out.sequences.device)
-                    .unsqueeze(0)
-                    .expand(out.sequences.shape[0], -1),
-                ],
-                dim=1,
-            )
+            clean_input_ids = []
 
-            final_attention_mask = (final_ids != tokenizer.pad_token_id).long()
+            for seq in out:
+                clean_seq = seq[seq != tokenizer.pad_token_id].tolist()
 
-            final_inputs = {
-                "input_ids": final_ids,
-                "attention_mask": final_attention_mask,
-            }
+                if clean_seq and clean_seq[-1] != END_THINK_TOKEN_ID:
+                    clean_seq.append(END_THINK_TOKEN_ID)
 
-            thinking_ids = out.sequences[:, thinking_inputs["input_ids"].shape[1] :]
+                clean_seq = clean_seq.extend(answer_prefix_ids)
+
+                clean_input_ids.append(clean_seq)
+
+            final_inputs = tokenizer.pad(
+                [{"input_ids": seq} for seq in clean_input_ids],
+                return_tensors="pt",
+                padding="longest",
+            ).to(device)
+
+            thinking_ids = out[:, thinking_inputs["input_ids"].shape[1] :]
             thinking_texts = tokenizer.batch_decode(
                 thinking_ids, skip_special_tokens=True
             )
 
             if debug:
                 final_input_text_debug = tokenizer.batch_decode(
-                    final_ids, skip_special_tokens=False
+                    final_inputs["input_ids"], skip_special_tokens=False
                 )
                 print(
                     f"New texts for answer generation (debug): {final_input_text_debug}"
