@@ -347,7 +347,7 @@ def run_gsm8k(
 
         for o in outputs:
             json.dump(o, f_out)
-        f_out.write("\n")
+            f_out.write("\n")
 
     f_out.close()
 
