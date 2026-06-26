@@ -224,12 +224,12 @@ def run_gsm8k(
                 if clean_seq and clean_seq[-1] != END_THINK_TOKEN_ID:
                     clean_seq.append(END_THINK_TOKEN_ID)
 
-                clean_seq = clean_seq.extend(answer_prefix_ids)
+                clean_seq.extend(answer_prefix_ids)
 
                 clean_input_ids.append(clean_seq)
 
             final_inputs = tokenizer.pad(
-                clean_input_ids,
+                [{"input_ids": seq} for seq in clean_input_ids],
                 return_tensors="pt",
                 padding="longest",
             ).to(device)
@@ -240,6 +240,8 @@ def run_gsm8k(
             )
 
             if debug:
+                for t in thinking_texts:
+                    print(f"Thinking for {len(t.split(' '))} tokens")
                 final_input_text_debug = tokenizer.batch_decode(
                     final_inputs["input_ids"], skip_special_tokens=False
                 )
