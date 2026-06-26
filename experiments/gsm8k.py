@@ -229,7 +229,7 @@ def run_gsm8k(
                 clean_input_ids.append(clean_seq)
 
             final_inputs = tokenizer.pad(
-                [{"input_ids": seq} for seq in clean_input_ids],
+                clean_input_ids,
                 return_tensors="pt",
                 padding="longest",
             ).to(device)
