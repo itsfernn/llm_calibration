@@ -19,16 +19,16 @@ THINKING_PROMPT = """You are an expert mathematical assistant.
 Instructions:
 - First solve the problem step-by-step.
 - Once your thoughts are complete, provide your final response.
-- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
-  - 0.0 = pure guess
-  - 1.0 = absolutely certain
+- Estimate your confidence in the correctness of your answer as an integer between 0 and 100.
+  - 0 = pure guess
+  - 100 = absolutely certain
 
 Your final response should ONLY valid JSON. No extra text!
 
 Format:
 {
   "answer": <final numeric answer>,
-  "confidence": <float>
+  "confidence": <int>
 }"""
 
 
@@ -36,16 +36,16 @@ NON_THINKING_PROMPT = """You are a direct mathematical calculator.
 
 Instructions:
 - Solve the problem directly.
-- Estimate your confidence in the correctness of your answer as a float between 0 and 1.
-  - 0.0 = pure guess
-  - 1.0 = absolutely certain
+- Estimate your confidence in the correctness of your answer as an integer between 0 and 100.
+  - 0 = pure guess
+  - 100 = absolutely certain
 
 Output ONLY valid JSON. No extra text!
 
 Format:
 {
   "answer": <final numeric answer>,
-  "confidence": <float>
+  "confidence": <int>
 }"""
 
 
@@ -278,7 +278,8 @@ def run_gsm8k(
 
             output = parse_output(content)
             prediction = output["answer"]
-            confidence = output["confidence"]
+            confidence_raw = output["confidence"]
+            confidence = confidence_raw / 100.0 if confidence_raw is not None else None
 
             prediction_logprobs = []
             prediction_tokens = []
@@ -325,6 +326,7 @@ def run_gsm8k(
                 "prediction": prediction,
                 "logprobs": prediction_logprobs,
                 "verb_conf": confidence,
+                "verb_conf_raw": confidence_raw,
             }
             outputs.append(output)
 
