@@ -273,6 +273,22 @@ def run_gsm8k(
             content_sequences, skip_special_tokens=True
         )
 
+        if debug:
+            for i, b in enumerate(batch):
+                print(f"Question: {b['question']}")
+                print(f"Answer: {b['answer']}")
+                print(f"Content: {content_texts[i]}")
+                if thinking:
+                    print(f"Thinking: {thinking_texts[i]}")
+
+                # print full output with special tokens
+                full_output = tokenizer.decode(
+                    out[i],
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                )
+                print(f"Full output (with special tokens): {full_output}")
+
         out_features = {
             "input_ids": out,
             "attention_mask": (out != tokenizer.pad_token_id).long(),
