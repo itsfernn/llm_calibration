@@ -255,6 +255,8 @@ def run_mmlu(
             :, new_inputs["input_ids"].shape[1] - answer_prefix_len :
         ]
 
+        test
+
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
             content = tokenizer.decode(content_ids, skip_special_tokens=True).strip(
