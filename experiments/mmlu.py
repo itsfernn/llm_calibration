@@ -249,13 +249,11 @@ def run_mmlu(
                 **gen_kwargs,
             )
             probs = torch.nn.functional.softmax(out.scores[0], dim=-1)
-            label_probs = probs[:, label_ids].cpu().numpy()
+            label_probs = probs[:, label_ids].cpu().numpy().tolist()
 
         content_sequences = out.sequences[
             :, new_inputs["input_ids"].shape[1] - answer_prefix_len :
         ]
-
-        test
 
         for i, b in enumerate(batch):
             content_ids = content_sequences[i].tolist()
