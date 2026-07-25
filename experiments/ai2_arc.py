@@ -83,6 +83,7 @@ def run_ai2_arc(
         "timestamp": run_timestamp,
         "device": str(device),
         "max_samples": max_samples,
+        "max_thinking_tokens": max_thinking_tokens,
         "system_prompt": system_prompt,
     }
 

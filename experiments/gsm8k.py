@@ -104,6 +104,7 @@ def run_gsm8k(
         "model": model,
         "batch_size": batch_size,
         "thinking": thinking,
+        "max_thinking_tokens": max_thinking_tokens,
         "system_prompt": system_prompt,
         "timestamp": run_timestamp,
         "device": str(device),
