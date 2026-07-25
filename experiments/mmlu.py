@@ -219,6 +219,9 @@ def run_mmlu(
             thinking_texts = tokenizer.batch_decode(
                 thinking_sequences, skip_special_tokens=True
             )
+            thinking_token_counts = (
+                (thinking_sequences != tokenizer.pad_token_id).sum(dim=1).tolist()
+            )
 
             new_texts = [
                 b["base_text"] + thinking_texts[i] + "\n\n" + ANSWER_PREFIX
@@ -241,6 +244,7 @@ def run_mmlu(
                 batch_features, padding=True, return_tensors="pt"
             ).to(device)
             thinking_texts = None
+            thinking_token_counts = None
 
         with torch.inference_mode():
             out = model.generate(
@@ -280,6 +284,7 @@ def run_mmlu(
                 "base_text": b["base_text"],
                 "content": content,
                 "thinking": thinking_texts[i] if thinking else None,
+                "n_thinking_tokens": thinking_token_counts[i] if thinking else None,
                 "prediction": prediction,
                 "label_probs": label_probs[i],
                 "verb_conf": confidence,

@@ -240,6 +240,9 @@ def run_gsm8k(
             thinking_texts = tokenizer.batch_decode(
                 thinking_ids, skip_special_tokens=True
             )
+            thinking_token_counts = (
+                (thinking_ids != tokenizer.pad_token_id).sum(dim=1).tolist()
+            )
 
         else:
             batch_features = [
@@ -250,6 +253,7 @@ def run_gsm8k(
                 batch_features, return_tensors="pt", padding=True
             ).to(device)
             thinking_texts = None
+            thinking_token_counts = None
 
         with torch.inference_mode():
             out = model.generate(
@@ -324,6 +328,7 @@ def run_gsm8k(
                 "answer": b["answer"],
                 "content": content,
                 "thinking": thinking_texts[i] if thinking else None,
+                "n_thinking_tokens": thinking_token_counts[i] if thinking else None,
                 "prediction": prediction,
                 "logprobs": prediction_logprobs,
                 "verb_conf": confidence,
