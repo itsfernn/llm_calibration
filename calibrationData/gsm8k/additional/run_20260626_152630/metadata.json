@@ -1,0 +1,14 @@
+{
+    "model": "Qwen/Qwen3-8B",
+    "batch_size": 32,
+    "thinking": false,
+    "system_prompt": "You are a direct mathematical calculator.\n\nInstructions:\n- Solve the problem directly.\n- Estimate your confidence in the correctness of your answer as an integer between 0 and 100.\n  - 0 = pure guess\n  - 100 = absolutely certain\n\nOutput ONLY valid JSON. No extra text!\n\nFormat:\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": <int>\n}",
+    "timestamp": "20260626_152630",
+    "device": "cuda",
+    "max_samples": null,
+    "git_commit": "f7e6a9cbf2b0536eecb0483f81671d131e0ee371",
+    "type": "int",
+    "tags": [
+        "prompt_types"
+    ]
+}

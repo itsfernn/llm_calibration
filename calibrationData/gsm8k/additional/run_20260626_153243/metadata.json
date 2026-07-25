@@ -1,0 +1,14 @@
+{
+    "model": "Qwen/Qwen3-8B",
+    "batch_size": 32,
+    "thinking": false,
+    "system_prompt": "You are a direct mathematical calculator.\n\nInstructions:\n- Solve the problem directly.\n- Estimate your confidence in the correctness of your answer using exactly one of the following labels:\n  - \"Certain\": Standard textbook logic; I have verified the arithmetic and found zero edge cases.\n  - \"Probable\": The methodology is solid, but the calculation is complex enough that a minor arithmetic slip is possible.\n  - \"Possible\": I am relying on a formula or theorem that I am not 100% sure applies here.\n  - \"Doubtful\": I am missing key information or context, but this is my best logical deduction.\n  - \"Guess\": Pure intuition; highly likely to contain an error.\n\nOutput ONLY valid JSON. No extra text!\n\nFormat:\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": \"<one of: Certain, Probable, Possible, Doubtful, Guess>\"\n}",
+    "timestamp": "20260626_153243",
+    "device": "cuda",
+    "max_samples": null,
+    "git_commit": "04f25afdf361cb8b6e5e1926e99a9de53b1fca9d",
+    "type": "string",
+    "tags": [
+        "prompt_types"
+    ]
+}

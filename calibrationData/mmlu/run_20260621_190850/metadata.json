@@ -1,0 +1,14 @@
+{
+    "model": "Qwen/Qwen3-14B",
+    "dataset": "cais/mmlu",
+    "batch_size": 16,
+    "thinking": false,
+    "timestamp": "20260621_190850",
+    "device": "cuda",
+    "max_samples": null,
+    "system_prompt": " Your task is to answer multiple-choice questions.\n\nInstructions:\n- Choose exactly one answer label from the provided options (e.g., A, B, C, D).\n- Do NOT output the full answer text\u2014only the label.\n- Estimate your confidence in the correctness of your answer as a float between 0 and 1.\n  - 0.0 = pure guess\n  - 1.0 = absolutely certain\n\nOutput ONLY valid JSON. No extra text!\n\nFormat:\n{\n  \"answer\": \"<answer label>\",\n  \"confidence\": <float>\n}\n",
+    "git_commit": "efa633acbc5cabc654b1f73526c5b80b48e9399b",
+    "tags": [
+        "main"
+    ]
+}

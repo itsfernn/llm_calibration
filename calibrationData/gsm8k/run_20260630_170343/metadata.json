@@ -1,0 +1,13 @@
+{
+    "model": "Qwen/Qwen3-0.6B",
+    "batch_size": 48,
+    "thinking": false,
+    "system_prompt": "You are a direct mathematical calculator.\n\nInstructions:\n- Solve the problem directly.\n- Estimate your confidence in the correctness of your answer as a float between 0 and 1.\n  - 0.0 = pure guess\n  - 1.0 = absolutely certain\n\nOutput ONLY valid JSON. No extra text!\n\nFormat:\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": <float>\n}",
+    "timestamp": "20260630_170343",
+    "device": "cuda",
+    "max_samples": null,
+    "git_commit": "04f401143966a7ea6e366979d7818eee6e1f3532",
+    "tags": [
+        "main"
+    ]
+}

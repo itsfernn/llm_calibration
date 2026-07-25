@@ -1,0 +1,11 @@
+{
+    "model": "Qwen/Qwen3-1.7B",
+    "batch_size": 16,
+    "thinking": false,
+    "system_prompt": "Solve the following math problem.\n\nPlease reason step by step, and put your final answer within  \\boxed{}.\n\nThen output ONLY the following JSON (no extra text):\n\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": <float between 0 and 1>\n}\n\nRules:\n- The answer must exactly match the value inside \\boxed{}.\n- Confidence must be a decimal between 0 and 1 (e.g., 0.82).\n- Do not include units in the answer.\n- Do not include any explanation inside or after the JSON.",
+    "timestamp": "20260412_173709",
+    "device": "cuda",
+    "max_samples": null,
+    "git_commit": "6f342c5335676860eb0027d2782c06880a1bf736",
+    "tags": []
+}

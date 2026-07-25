@@ -1,0 +1,15 @@
+{
+    "model": "Qwen/Qwen3-1.7B",
+    "dataset": "ai2_arc",
+    "dataset_config": "ARC-Challenge",
+    "batch_size": 64,
+    "thinking": false,
+    "timestamp": "20260622_173148",
+    "device": "cuda",
+    "max_samples": null,
+    "system_prompt": "Answer the following multiple-choice question. Choose the correct answer from the choices provided.\nThen output ONLY the following JSON (no extra text):\n\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": <float between 0 and 1>\n}\n\nRules:\n- answer must be the label of the correct choice\n- confidence must be a float between 0 and 1 (e.g. 0.82)\n- no extra text",
+    "git_commit": "7a589202be5e9b27efc12c8986ca1a003c548329",
+    "tags": [
+        "main"
+    ]
+}
