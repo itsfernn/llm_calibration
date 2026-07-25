@@ -55,6 +55,7 @@ def run_mmlu(
     out_dir="out_runs",
     max_samples=None,
     thinking=False,
+    max_thinking_tokens=1000,
     **kwargs,
 ):
     """
@@ -209,7 +210,7 @@ def run_mmlu(
                 out = model.generate(
                     **inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
-                    max_new_tokens=1000,
+                    max_new_tokens=max_thinking_tokens,
                     **gen_kwargs,
                 )
 

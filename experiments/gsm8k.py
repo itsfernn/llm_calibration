@@ -79,6 +79,7 @@ def run_gsm8k(
     max_samples=None,
     system_prompt=None,
     debug=False,
+    max_thinking_tokens=1000,
     **kwargs,
 ):
     """
@@ -212,7 +213,7 @@ def run_gsm8k(
                 out = model.generate(
                     **thinking_inputs,
                     eos_token_id=END_THINK_TOKEN_ID,
-                    max_new_tokens=1000,
+                    max_new_tokens=max_thinking_tokens,
                     **gen_kwargs,
                 )
 

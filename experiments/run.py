@@ -45,6 +45,12 @@ if __name__ == "__main__":
         help="Whether to include step-by-step reasoning in the prompt",
     )
     parser.add_argument(
+        "--max_thinking_tokens",
+        type=int,
+        default=1000,
+        help="Maximum tokens for the thinking phase (default: 1000)",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug mode (prints additional information)",
