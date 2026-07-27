@@ -25,6 +25,7 @@ with app.setup:
     import json
     import re
     import glob
+    from netcal.metrics import ECE, ACE
 
 
 @app.cell
@@ -207,29 +208,29 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _():
+def _(calculate_metrics):
     def bootstrap_metrics(o, conf_type, n_bootstrap=1000, n_bins=10, seed=42):
         """
         Resamples prediction data in-memory without reloading from disk.
         Computes point estimates, 95% CIs, and standard errors.
-    
+
         Assumes `o` can be sliced/indexed (e.g., pandas DataFrame, dict of arrays/lists).
         """
         rng = np.random.default_rng(seed)
-    
+
         # Extract total sample count
         num_samples = len(o) if not isinstance(o, dict) else len(next(iter(o.values())))
-    
+
         # 1. Compute Point Estimate on original data
         point_metrics = calculate_metrics(o, conf_type, n_bins=n_bins)
-    
+
         # 2. Run Bootstrap Loop in memory
         bootstrap_results = {key: [] for key in point_metrics.keys()}
-    
+
         for _ in range(n_bootstrap):
             # Sample indices WITH replacement
             idx = rng.choice(num_samples, size=num_samples, replace=True)
-        
+
             # Resample data in memory (handles DataFrame or Dict)
             if isinstance(o, pd.DataFrame):
                 o_sampled = o.iloc[idx]
@@ -238,12 +239,12 @@ def _():
             else:
                 # Fallback for custom list/array-like objects
                 o_sampled = [o[i] for i in idx]
-            
+
             boot_m = calculate_metrics(o_sampled, conf_type, n_bins=n_bins)
-        
+
             for key, val in boot_m.items():
                 bootstrap_results[key].append(val)
-            
+
         # 3. Aggregate Percentiles (95% CI) and Standard Error
         final_metrics = {}
         for key, point_val in point_metrics.items():
@@ -251,20 +252,20 @@ def _():
             ci_lower = np.percentile(vals, 2.5)
             ci_upper = np.percentile(vals, 97.5)
             std_err = np.std(vals, ddof=1)
-        
+
             # Output clean scalar/tuple fields for downstream reporting
             final_metrics[f"{key}"] = point_val
             final_metrics[f"{key}_ci_lower"] = ci_lower
             final_metrics[f"{key}_ci_upper"] = ci_upper
             final_metrics[f"{key}_se"] = std_err
-        
+
         return final_metrics
 
-    def get_bootstrap_metrics(df, n_bootstrap=1000, n_bins=10):
+    def get_bootstrap_metrics(df, conf_type="verb", n_bootstrap=1000, n_bins=10):
         metrics = []
         for i, row in df.iterrows():
             o = load_run_data(row)
-            m = bootstrap_metrics(o, "verb", n_bootstrap=n_bootstrap, n_bins=10)
+            m = bootstrap_metrics(o, conf_type, n_bootstrap=n_bootstrap, n_bins=10)
             m["type"] = row["type"]
             metrics.append(m)
         return pd.DataFrame(metrics)
@@ -294,28 +295,28 @@ def _(metric_mapping):
 @app.function(hide_code=True)
 def plot_metric_with_ci(df, metric="acc", title=None):
     plt.figure(figsize=(8, max(4, len(df) * 0.5)), dpi=120)
-    
+
     # 1. Preserve original DataFrame order
     df_plot = df.reset_index(drop=True)
-    
+
     # 2. Map colors consistently based on unique types across the dataset
     # (Extracting unique types globally ensures colors never swap when filtering/switching metrics)
     unique_types = list(df['type'].unique())
     palette = sns.color_palette("tab10", n_colors=len(unique_types))
     color_map = dict(zip(unique_types, palette))
-    
+
     y_positions = np.arange(len(df_plot))
-    
+
     # 3. Plot each prompt in its original order with its fixed color
     for i, row in df_plot.iterrows():
         mean = row[metric]
         xerr_lower = mean - row[f"{metric}_ci_lower"]
         xerr_upper = row[f"{metric}_ci_upper"] - mean
         xerr = [[xerr_lower], [xerr_upper]]
-        
+
         prompt_type = row['type']
         color = color_map[prompt_type]
-        
+
         plt.errorbar(
             x=mean,
             y=y_positions[i],
@@ -328,18 +329,18 @@ def plot_metric_with_ci(df, metric="acc", title=None):
             capsize=4,
             markersize=7
         )
-    
+
     if title is None:
         title = f"{metric.upper()} Comparison Across Prompts"
-        
+
     plt.yticks(y_positions, df_plot['type'])
     plt.xlabel(metric.upper())
     plt.title(f"{title} (with 95% CI)")
     plt.grid(axis='x', linestyle='--', alpha=0.5)
-    
+
     # Display top item of DataFrame at the top of the plot
     plt.gca().invert_yaxis()
-    
+
     plt.tight_layout()
     plt.show()
 
@@ -371,39 +372,33 @@ def _(prompt_types_metric_df):
     return
 
 
-@app.cell(hide_code=True)
-def _(prompt_types_metric_df):
-    def format_summary_table(df):
+@app.cell
+def _(index_name_mapping, metric_mapping):
+    def format_summary_table(df, indices, metrics=["acc", "ece", "ace", "brier", "nll", "auc_roc"]):
         formatted_df = pd.DataFrame()
-        formatted_df["Prompt Type"] = df["type"]
+        for i in indices:
+            col_name = index_name_mapping[i]
+            formatted_df[col_name] = df[i]
 
-        # List of base metrics to format: (key, column_name, is_percentage)
-        metrics = [
-            ("acc", "Accuracy (EM) ↑", True),
-            ("nll", "NLL ↓", False),
-            ("brier", "Brier Score ↓", False),
-            ("ece", "ECE ↓", False),
-            ("auc_roc", "AUROC ↑", False),
-            ("ap_errors", "AP (Errors) ↑", False),
-        ]
-
-        for metric_key, col_name, is_percentage in metrics:
+        for metric_key in metrics:
+            col_name = metric_mapping[metric_key]
             col_values = []
             for _, row in df.iterrows():
                 mean_val = row[metric_key]
                 se_val = row[f"{metric_key}_se"]  # Reads directly from _se column
 
-                if is_percentage:
-                    col_values.append(
-                        f"{mean_val * 100:.1f}% ({se_val * 100:.1f})"
-                    )
-                else:
-                    col_values.append(f"{mean_val:.3f} ({se_val:.3f})")
+                col_values.append(f"{mean_val:.3f} ({se_val:.3f})")
 
             formatted_df[col_name] = col_values
 
         return formatted_df
-    format_summary_table(prompt_types_metric_df)
+
+    return (format_summary_table,)
+
+
+@app.cell
+def _(format_summary_table, prompt_types_metric_df):
+    format_summary_table(prompt_types_metric_df, indices=["type"])
     return
 
 
@@ -416,16 +411,146 @@ def _():
 
 
 @app.cell
+def _(thinking_comp_df):
+    thinking_comp_df
+    return
+
+
+@app.cell
+def _(thinking_comp_df):
+    def get_n_thinking_tokens(row):
+        if "n_thinking_tokens" in row:
+            return row["n_thinking_tokens"]
+        elif "thinking" in row:
+            if isinstance(row["thinking"], str):
+                return len(row["thinking"].split()) * 1.33
+
+        return 0
+
+    for _i, _row in thinking_comp_df.iterrows():
+        run_data = load_run_data(_row)
+        n_thinking_tokens = run_data.apply(get_n_thinking_tokens, axis=1).mean()
+        thinking_comp_df.loc[_i, "n_thinking_tokens"] = n_thinking_tokens
+    return
+
+
+@app.cell
 def _(get_bootstrap_metrics, thinking_comp_df):
-    _df = get_bootstrap_metrics(thinking_comp_df, n_bootstrap=1000)
-    thinking_comp_plot_df = _df
+    thinking_comp_boot_metrics_verb = get_bootstrap_metrics(thinking_comp_df, n_bootstrap=1000)
+    return (thinking_comp_boot_metrics_verb,)
+
+
+@app.cell
+def _(thinking_comp_boot_metrics_verb, thinking_comp_df):
+    thinking_comp_plot_df = pd.concat(
+        [
+            thinking_comp_df["n_thinking_tokens"].reset_index(drop=True),
+            thinking_comp_boot_metrics_verb], 
+        axis = 1
+    )
     return (thinking_comp_plot_df,)
 
 
-@app.cell(hide_code=True)
-def _(format_su, mmary_table, thinking_comp_plot_df):
-    format_su
-    mmary_table(thinking_comp_plot_df)
+@app.cell
+def _(get_bootstrap_metrics, thinking_comp_df):
+    thinking_comp_boot_metrics_log = get_bootstrap_metrics(thinking_comp_df, conf_type="log", n_bootstrap=1000)
+    return
+
+
+@app.cell
+def _(plot_reliability_diagrams, thinking_comp_df):
+    _log_fig = plot_reliability_diagrams(thinking_comp_df, conf_col="log_conf", hue="n_thinking_tokens", cmap="crest", title="Log Probabilites")
+
+    _verb_fig = plot_reliability_diagrams(thinking_comp_df, conf_col="verb_conf", hue="n_thinking_tokens", cmap="crest", title="Verbalized Confidences")
+
+    mo.hstack([_log_fig, _verb_fig])
+    return
+
+
+@app.cell
+def _(metric_mapping, thinking_comp_plot_df):
+    # 1. Melt the DataFrame to convert metric columns into rows
+    _df_melted = thinking_comp_plot_df.melt(
+        id_vars=["n_thinking_tokens"],
+        value_vars=["acc", "auc_roc"],
+        var_name="metric",
+        value_name="value",
+    )
+
+    _df_melted2 = thinking_comp_plot_df.melt(
+        id_vars=[ "acc"],
+        value_vars=["ece", "ace", "brier"],
+        var_name="metric",
+        value_name="value",
+    )
+
+    # 2. Map the technical metric names to clean, human-readable titles
+    _df_melted["metric_label"] = _df_melted["metric"].map(metric_mapping)
+
+    # 3. Create a single figure and draw all lines differentiated by hue
+    _fig, _ax = plt.subplots()
+    sns.lineplot(
+        data=_df_melted,
+        x="n_thinking_tokens",
+        y="value",
+        hue="metric",
+        marker="o",
+        ax=_ax,
+    )
+
+    _fig2, _ax2 = plt.subplots()
+    sns.lineplot(
+        data=_df_melted2,
+        x="acc",
+        y="value",
+        hue="metric",
+        marker="o",
+        ax=_ax2,
+    )
+
+    _ax.set_title("Metrics vs. Number of Thinking Tokens")
+    _ax.set_xlabel("Number of Thinking Tokens")
+    _ax.set_ylabel("Value")
+
+    plt.close(_fig)  # Prevents stray auto-displays in marimo
+
+    # Display the single combined figure
+    mo.hstack([_fig, _fig2])
+    return
+
+
+@app.cell
+def _(metric_mapping, thinking_comp_plot_df):
+    _df = thinking_comp_plot_df
+    _figs = []
+
+    for _m, _v in metric_mapping.items():
+        # 1. Create a fresh figure and axis for each metric
+        _fig, _ax = plt.subplots()
+
+        # 2. Draw directly onto the created axis
+        sns.lineplot(data=_df, x="n_thinking_tokens", y=_m, marker="o", ax=_ax)
+        _ax.set_title(f"{_v} vs. Number of Thinking Tokens")
+
+        # 3. Append the Figure object (or close it to prevent stray auto-displays)
+        _figs.append(_fig)
+        plt.close(_fig)  # Prevents duplicate renderings in marimo
+
+    # Stack the generated figures vertically
+    mo.vstack(_figs)
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _(format_summary_table, thinking_comp_plot_df):
+    _df = format_summary_table(thinking_comp_plot_df, indices=["n_thinking_tokens"])
+    _df["Avg Thinking Tokens"] = _df["Avg Thinking Tokens"].apply(lambda x: f"{x:.0f}")
+    _df.sort_values(["Avg Thinking Tokens"], ignore_index=True)
     return
 
 
@@ -451,6 +576,7 @@ def load_data():
                 data = json.load(f)
 
             data["folder"] = path.rsplit("/", 1)[0]  # keep folder info
+            data["tags"] = data.get("tags") or []
             rows.append(data)
 
         except Exception as e:
@@ -459,6 +585,7 @@ def load_data():
     df = pd.DataFrame(rows)
 
     df["dataset"] = df["dataset"].fillna("gsm8k")
+    df["max_thinking_tokens"] = df["max_thinking_tokens"].fillna(0)
 
     def get_model_size(model_name):
         match = re.search(r"([\d.]+)\s*B", model_name)
@@ -488,41 +615,41 @@ def load_run_data(row):
 
 
 @app.cell
-def _(conf_mapping, dataset_mapping):
+def _(calculate_metrics, conf_mapping, dataset_mapping):
     # selected_df = main_df[main_df["dataset"] == dataset_dropdown.value].reset_index()
     def get_results_df(df):
-    
+
         def get_metrics(df, type):
             metrics = []
             for i, row in df.iterrows():
                 o = load_run_data(row)
                 m = calculate_metrics(o, type, n_bins=10)
                 metrics.append(m)
-    
+
             return metrics
-        
+
         _df = df.reset_index()
         _log_metrics = get_metrics(_df, "log")
         _verb_metrics = get_metrics(_df, "verb")
-    
+
         _log_metrics_df = pd.DataFrame(_log_metrics)
         _verb_metrics_df = pd.DataFrame(_verb_metrics)
-    
+
         _log_results = pd.concat([_df, _log_metrics_df], axis=1)
         _log_results["conf_type"] = "log"
-    
+
         _verb_results = pd.concat([_df, _verb_metrics_df], axis=1)
         _verb_results["conf_type"] = "verb"
-    
+
         result_df = pd.concat([_log_results, _verb_results], axis=0)
-    
+
 
         result_df["dataset"] = (
             result_df["dataset"]
                 .map(dataset_mapping)
                 .fillna(result_df["dataset"])
         )
-    
+
         result_df["conf_type"] = (
             result_df["conf_type"]
                 .map(conf_mapping)
@@ -554,30 +681,40 @@ def _():
     return
 
 
-@app.function
-def calculate_metrics(run_file, method="verb", n_bins=10):
-    mask = run_file[f"{method}_conf"].notna()
+@app.cell
+def _(get_e, y_conf_jittered):
+    def compute_ace_with_jitter(y_conf, y_true, n_bins=10):
+        get_e
+    
+        return ECE(bins=n_bins, equal_intervals=False).measure(y_conf_jittered, y_true)
 
-    # Cast to numpy arrays to ensure safe math operations later
-    y_true = np.array(run_file.loc[mask, "correct"]).astype(int)
-    y_conf = np.array(run_file.loc[mask, f"{method}_conf"]).astype(float)
+    def calculate_metrics(run_file, method="verb", n_bins=10):
+        mask = run_file[f"{method}_conf"].notna()
 
-    metrics = {}
+        # Cast to numpy arrays to ensure safe math operations later
+        y_true = np.array(run_file.loc[mask, "correct"]).astype(int)
+        y_conf = np.array(run_file.loc[mask, f"{method}_conf"]).astype(float)
 
-    # --- Standard Metrics ---
-    metrics["ece"] = calculate_ece(
-        y_true, y_conf, n_bins
-    )  # (Assumes defined elsewhere)
-    metrics["brier"] = brier_score_loss(y_true, y_conf)
-    metrics["ap_success"] = average_precision_score(y_true, y_conf)
-    metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
-    metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
-    metrics["acc"] = run_file["correct"].mean()
+        metrics = {}
 
-    # Exponentially penalizes high confidence errors
-    metrics["nll"] = log_loss(y_true, y_conf)
+        # --- Standard Metrics ---
+        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true,)
 
-    return metrics
+        # ACE (Equal frequency / quantile binning)
+        metrics["ace"] = compute_ace_with_jitter(y_conf, y_true, n_bins=n_bins)
+    
+        metrics["brier"] = brier_score_loss(y_true, y_conf)
+        metrics["ap_success"] = average_precision_score(y_true, y_conf)
+        metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
+        metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
+        metrics["acc"] = run_file["correct"].mean()
+
+        # Exponentially penalizes high confidence errors
+        metrics["nll"] = log_loss(y_true, y_conf)
+
+        return metrics
+
+    return (calculate_metrics,)
 
 
 @app.function
@@ -672,9 +809,11 @@ def preprocess_ai2_arc(df):
 
 @app.cell(hide_code=True)
 def _():
-    def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10):
+    def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10, jitter_eps=1e-4):
         """
         Create equal-frequency bins based on predicted probabilities and calculate mean accuracy per bin.
+        Jitter is added to break probability ties during bin creation.
+    
         Parameters
         ----------
         y_true : array-like
@@ -683,12 +822,25 @@ def _():
             Predicted probabilities for the positive class (floats in [0, 1]).
         n_bins : int
             Number of equal-frequency bins to create.
+        jitter_eps : float, default=1e-4
+            Magnitude of uniform noise added to break exact ties in probabilities.
+        
         Returns
         -------
         pd.DataFrame
-            DataFrame with columns: Bin, Accuracy, Confidence (mean predicted probability in the bin).
+            DataFrame with columns: bin, mean_y, std_y, mean_conf, n, start, end, width.
         """
-        bins = pd.qcut(y_prob, n_bins, labels=False, duplicates="drop")
+        y_prob = np.asarray(y_prob)
+        y_true = np.asarray(y_true)
+
+        # 1. Add subtle jitter to break ties in probabilities
+        jitter = np.random.uniform(-jitter_eps, jitter_eps, size=y_prob.shape)
+        y_prob_jittered = np.clip(y_prob + jitter, 0.0, 1.0)
+
+        # 2. Determine bin assignments using the jittered probabilities
+        bins = pd.qcut(y_prob_jittered, n_bins, labels=False, duplicates="drop")
+
+        # 3. Store ORIGINAL probabilities so final statistics aren't noisy
         df = pd.DataFrame({"y_true": y_true, "y_prob": y_prob, "bin": bins})
 
         binned = (
@@ -722,8 +874,8 @@ def _():
 
             # Attach run metadata so Seaborn can group by them
             row["unit"] = i
-            row['model_size'] = run['model_size']
-            row['dataset'] = run.get('dataset')
+            for col, val in run.items():
+                row[col] = [val] * len(row)
 
             combined_dfs.append(row)
 
@@ -788,12 +940,18 @@ def _():
 def _():
     metric_mapping = {
         "ece": "Expected Calibration Error (ECE)",
+        "ace": "Adaptive Calibration Error (ACE)",
         "brier": "Brier Score",
         "ap_success": "Average Precision (Success)",
         "ap_errors": "Average Precision (Errors)",
         "auc_roc": "AUC-ROC",
         "acc": "Accuracy",
         "nll": "Negative Log-Likelihood (NLL)",
+    }
+
+    index_name_mapping = {
+        "type": "Prompt Type",
+        "n_thinking_tokens": "Avg Thinking Tokens"
     }
 
     dataset_mapping = {
@@ -804,7 +962,7 @@ def _():
     }
 
     conf_mapping = {"verb": "Verbalized Confidence", "log": "Log Probabilities"}
-    return conf_mapping, dataset_mapping, metric_mapping
+    return conf_mapping, dataset_mapping, index_name_mapping, metric_mapping
 
 
 @app.cell(hide_code=True)
@@ -889,6 +1047,11 @@ def _(df):
     mo.vstack(
         [run_table, tag_input, mo.hstack([save_button, clear_button], justify="start")]
     )
+    return
+
+
+@app.cell
+def _():
     return
 
 
