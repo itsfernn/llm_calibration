@@ -2,13 +2,12 @@
     "model": "Qwen/Qwen3-8B",
     "batch_size": 32,
     "thinking": true,
+    "max_thinking_tokens": 200,
     "system_prompt": "You are an expert mathematical assistant. \n\nInstructions:\n- First solve the problem step-by-step.\n- Once your thoughts are complete, provide your final response.\n- Estimate your confidence in the correctness of your answer as a float between 0 and 1.\n  - 0.0 = pure guess\n  - 1.0 = absolutely certain\n\nYour final response should ONLY valid JSON. No extra text!\n\nFormat:\n{\n  \"answer\": <final numeric answer>,\n  \"confidence\": <float>\n}",
-    "timestamp": "20260626_155054",
+    "timestamp": "20260725_135624",
     "device": "cuda",
     "max_samples": null,
-    "max_thinking_tokens": 1000,
-    "git_commit": "3f6eb6808d92e016c189034653b9243ee09736cb",
-    "type": "thinking",
+    "git_commit": "5ecc30612a1b1d414c77648593bbc85f5780b0e0",
     "tags": [
         "thinking_comp"
     ]
