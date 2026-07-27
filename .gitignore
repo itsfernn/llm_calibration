@@ -6,3 +6,4 @@ cache
 runs-legacy
 .env
 __marimo__
+__marimo__/
