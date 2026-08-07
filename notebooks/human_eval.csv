@@ -1,0 +1,145 @@
+dataset,model,prompt,question,answer,prediction,category
+HotpotQA,DeepSeek-V3,Chain of Thought,What did Wendy Toye and Paul Schrader both do for an occupation?,film director,director,3
+HotpotQA,DeepSeek-V3,Chain of Thought,where is the Dunn memorial bridge located,"Albany, New York","Albany, NY",2
+HotpotQA,DeepSeek-V3,Chain of Thought,Ulrich Wegener was a founding member of a counter-terrorist force that is a tactical unit of what police force?,German Federal Police,Bundespolizei,2
+HotpotQA,DeepSeek-V3,Multistep,Shin Eun-kyung is best known for her leading role in a South Korean film about a female gang boss who needs to get married to fulfill what?,her dying sister's wishes,her dying sister's wish,1
+HotpotQA,DeepSeek-V3,Multistep,During which era of French classical music did Marc Antoine Charpentier compose music?,the Baroque era.,Baroque,3
+HotpotQA,DeepSeek-V3,Multistep,"Mital Sharipov (Russian: Митал Шарипов ; born April 13, 1972 in Bishkek) is a retired Kyrgyzstani weightlifter, Bishkek , formerly Pishpek and Frunze, is the capital and largest city of Kyrgyzstan, in which country ?",Kyrgyz Republic,Kyrgyzstan,2
+HotpotQA,DeepSeek-V3,Top-k," ""Take My Hand, Precious Lord""  is a gospel song written by a man who earlier in his life was a leading blues pianist known as who?",Georgia Tom,Thomas A. Dorsey,2
+HotpotQA,DeepSeek-V3,Top-k,During which era of French classical music did Marc Antoine Charpentier compose music?,the Baroque era.,Baroque,3
+HotpotQA,DeepSeek-V3,Top-k,"The Merchant of Venice is a 16th-century play by William Shakespeare in which a merchant in Venice must default on a large loan provided by an abused Jewish moneylender, notable is Portia's speech about which titled quote by Portia in William Shakespeare's ""The Merchant of Venice""; it occurs during Act IV, Scene 1, set in a Venetian Court of Justice?",The quality of mercy,The quality of mercy is not strained,3
+MuSiQue,DeepSeek-V3,Top-k,Who founded the organisation that owns Defective by Design?,Richard Stallman,Free Software Foundation,4
+MuSiQue,DeepSeek-V3,Top-k,When did the place of death of Paenitentiam Agere's author become its own country?,11 February 1929,1929,3
+MuSiQue,DeepSeek-V3,Top-k,Where is Chris Meffert's birth place in the state of Florida?,in Northern Florida,Tallahassee,3
+MuSiQue,DeepSeek-V3,Direct,Where did Katrina hit the hardest in the Toussaint performer's birthplace?,the city of New Orleans,New Orleans,3
+MuSiQue,DeepSeek-V3,Direct,What is the body of water that St. Matthew Island located in named after?,Vitus Bering,Bering Sea,4
+MuSiQue,DeepSeek-V3,Direct,Who is the lead singer of the band performing Bang Bang Rock & Roll?,Eddie Argos,Art Brut,4
+MuSiQue,DeepSeek-V3,Multistep,What were the Genesis's advantage over the platform of Pictionary?,built on 16-bit architectures and offered improved graphics and sound,Better graphics and sound,2
+MuSiQue,DeepSeek-V3,Multistep,What state contains the place where Fatata te Miti is displayed?,"Washington, D.C.",District of Columbia,2
+MuSiQue,DeepSeek-V3,Multistep,On what date did Battle of the birth place of Denny Januar Ali end?,15 February 1942,"February 15, 1942",1
+2WikiMultihopQA,DeepSeek-V3,Direct,Where was the husband of Jana Tichá born?,Počátky,Czech Republic,3
+2WikiMultihopQA,DeepSeek-V3,Direct,Where was the director of film Little Alvin And The Mini-Munks born?,American,United States,1
+2WikiMultihopQA,DeepSeek-V3,Direct,Where was the director of film Visit Or Memories And Confessions born?,Porto,Portugal,3
+HotpotQA,DeepSeek-V3,Direct,"Who was born earlier, Philippe Perrin or Sigmund Jähn?",Sigmund Werner Paul Jähn,Sigmund Jähn,2
+HotpotQA,DeepSeek-V3,Direct,"Mital Sharipov (Russian: Митал Шарипов ; born April 13, 1972 in Bishkek) is a retired Kyrgyzstani weightlifter, Bishkek , formerly Pishpek and Frunze, is the capital and largest city of Kyrgyzstan, in which country ?",Kyrgyz Republic,Kyrgyzstan,2
+HotpotQA,DeepSeek-V3,Direct,"What kind of persona does the artist who released Special Herbs, Vols. 4, 5 & 6 adopt?",super villain,MF DOOM,4
+2WikiMultihopQA,DeepSeek-V3,Multistep,Where was the director of film Dead In Tombstone born?,Dutch,Netherlands,1
+2WikiMultihopQA,DeepSeek-V3,Multistep,Where did Africanus Fabius Maximus's father die?,Roman,Rome,3
+2WikiMultihopQA,DeepSeek-V3,Multistep,"When did Helena Kantakouzene, Empress Of Trebizond's husband die?",1 November 1463,1463,3
+MuSiQue,DeepSeek-V3,Chain of Thought,Where are the headquarters for the publisher of In the Shadow of Greatness?,Annapolis,"Annapolis, Maryland",3
+MuSiQue,DeepSeek-V3,Chain of Thought,Who does the actor who plays Nanny in Eloise at Christmastime play in Princess Diaries?,Queen dowager Clarisse Renaldi,Queen Clarisse Renaldi,3
+MuSiQue,DeepSeek-V3,Chain of Thought,Where is Amílcar Cabral International Airport?,central Atlantic Ocean,Cape Verde,5
+2WikiMultihopQA,DeepSeek-V3,Chain of Thought,What nationality is the performer of song Gone Fishin' (Song)?,America,American,1
+2WikiMultihopQA,DeepSeek-V3,Chain of Thought,What is the date of death of Augusta Leigh's father?,2 August 1791,1791-08-02,1
+2WikiMultihopQA,DeepSeek-V3,Chain of Thought,Where was the place of death of the composer of song Tarkus (Song)?,"Santa Monica, California","Identify the composer of ""Tarkus"" First, I need to know who composed the song ""Tarkus."" ""Tarkus"" is a famous progressive rock song, and after a quick search, I recall that it's by the band Emerson, Lake & Palmer (ELP). The primary composers of ELP's music were Keith Emerson, Greg Lake, and Carl Palmer. ""Tarkus"" is specifically from their 1971 album of the same name, and it's primarily associated with Keith Emerson, who was the keyboardist and a major creative force in the band.  ### Step 2: Confirm the composer of ""Tarkus"" To ensure accuracy, I should confirm that Keith Emerson is indeed the main composer of ""Tarkus."" Looking it up, ""Tarkus"" is credited to Emerson and Lake, with Emerson being the primary composer of the musical themes. So, it's safe to say Keith Emerson is the composer we're focusing on.  ### Step 3: Find out where Keith Emerson died Now, I need to find out where Keith Emerson passed away. From what I remember, Keith Emerson died in 2016. A quick search confirms that he died on March 11, 2016, in Santa Monica, California, USA. The cause of death was reported as a self-inflicted gunshot wound.  ### Step 4: Verify the place of death To be thorough, I should verify that Santa Monica is indeed where he died. Multiple reputable sources, including obituaries and news reports, confirm that Keith Emerson died at his home in Santa Monica.  ### Step 5: Conclusion Putting it all together: - The composer of ""Tarkus"" is Keith Emerson. - Keith Emerson died in Santa Monica, California, USA.  ### Final Answer: Final Answer: Santa Monica, California, USA",5
+2WikiMultihopQA,DeepSeek-V3,Top-k,"Which film has the director who died earlier, Il Gaucho or Bomgay?",Bomgay,Il Gaucho,5
+2WikiMultihopQA,DeepSeek-V3,Top-k,What is the date of birth of the director of film Kon-Tiki (1950 Film)?,"October 6, 1914",Thor Heyerdahl; 1914-10-06,3
+2WikiMultihopQA,DeepSeek-V3,Top-k,"Which film was released first, The Beginning Or The End or Hold Back The Night?",The Beginning Or The End,The Beginning Or The End (1946),3
+2WikiMultihopQA,Llama-3.3-70B,Top-k,What is the place of birth of Martín Cortés (Son Of Malinche)'s father?,"Medellín, Spain",Medellín,3
+2WikiMultihopQA,Llama-3.3-70B,Top-k,Where was the father of Sigurd Wallin born?,Östra Husby,Sweden,3
+2WikiMultihopQA,Llama-3.3-70B,Top-k,Are both The Trial Of Mary Dugan (1941 Film) and Undisputed (Film) from the same country?,yes,United States,3
+2WikiMultihopQA,Llama-3.3-70B,Multistep,Where was the place of death of Peggy Schuyler's father?,Albany,"Albany, New York",3
+2WikiMultihopQA,Llama-3.3-70B,Multistep,Where was the director of film The Heart Of The World born?,"Winnipeg, Manitoba",Winnipeg,3
+2WikiMultihopQA,Llama-3.3-70B,Multistep,What is the place of birth of Jazmin Grace Grimaldi's father?,Prince's Palace of Monaco,Monaco,3
+HotpotQA,Llama-3.3-70B,Multistep,What did Sisomphone Vongpharkdy do at the 2000 Summer Olympics opening ceremony as mandated by the Olympic Charter?,flag bearer of Laos,Carried the flag,3
+HotpotQA,Llama-3.3-70B,Multistep,"Who was Charles Robert Rattray in a Football League with that was located in Accrington, Lancashire?",Accrington Stanley,Manager of Accrington Stanley F.C.,3
+HotpotQA,Llama-3.3-70B,Multistep,"In Irish and Scottish mythology, Uathach was the daughter of a warrior woman associated with which Isle ?",Isle of Skye,Skye,3
+MuSiQue,Llama-3.3-70B,Multistep,When did the place where St for whom the Mantua Cathedral was named for basilica the head of the catholic religion is located in become its own country?,11 February 1929,1929,3
+MuSiQue,Llama-3.3-70B,Multistep,When did the place of death of Paenitentiam Agere's author become its own country?,11 February 1929,"February 11, 1929",1
+MuSiQue,Llama-3.3-70B,Multistep,When did the city where the author of Pacem in Terris died become its own country?,11 February 1929,1929,3
+2WikiMultihopQA,Llama-3.3-70B,Direct,"Which film has the director who was born earlier, The Marseille Contract or Strangers Of The Night?",Strangers Of The Night,The Marseille Contract,5
+2WikiMultihopQA,Llama-3.3-70B,Direct,What nationality is Penny Lancaster's husband?,British,Scottish,3
+2WikiMultihopQA,Llama-3.3-70B,Direct,"Where was the father of William Graham, 2Nd Duke Of Montrose born?",Scottish,Scotland,1
+MuSiQue,Llama-3.3-70B,Top-k,"Among the top five largest urban areas in the state where Infest's performer was formed, where does Veoh's headquarters city rank?",third-largest,Los Angeles,4
+MuSiQue,Llama-3.3-70B,Top-k,What was Nintendo's limit on games per developer per year on the system which had a three letter abbreviation and was also the platform for Pictionary?,five,5,1
+MuSiQue,Llama-3.3-70B,Top-k,"How were the people that the Somali Muslim Ajuran Empire made coins to proclaim independence from, expelled from the country where Star Cola is produced?",The dynasty regrouped and defeated the Portuguese,Portuguese,3
+MuSiQue,Llama-3.3-70B,Chain of Thought,What county has a city that is adjacent to the capital city of Erskine College's state?,Richland County,Lexington County,5
+MuSiQue,Llama-3.3-70B,Chain of Thought,"As a result of the Black Death, how much was the population reduced in the place that the US helped with the Marshall Plan?",30% to 65%,30-60%,5
+MuSiQue,Llama-3.3-70B,Chain of Thought,"The carnival in the town where Jean Mathonet died is rooted in a European culture. In Rotrude's father's era, the language of that culture was later known by what name?",Medieval Latin,Latin,3
+HotpotQA,Llama-3.3-70B,Chain of Thought,What year did Les Scadding win the EuroMillions lottery?,in 2009.,2009,3
+HotpotQA,Llama-3.3-70B,Chain of Thought,"Community is an American television sitcom that follows an ensemble cast, including what actress who played Trudy Campbell in the AMC drama Mad Men?",Alison Brie Schermerhorn,Alison Brie,2
+HotpotQA,Llama-3.3-70B,Chain of Thought,Both Gaobeidian and Longhai City are located within what country?,People's Republic of China,China,2
+HotpotQA,Llama-3.3-70B,Top-k,"Len Wiseman and Ken Kwapis, are Americans, that have which occupation?",film director,Directors,1
+HotpotQA,Llama-3.3-70B,Top-k,"What film production company released both ""The Ugly Dachshund"" and Brother Bear?",Walt Disney,Disney,2
+HotpotQA,Llama-3.3-70B,Top-k,"Mital Sharipov (Russian: Митал Шарипов ; born April 13, 1972 in Bishkek) is a retired Kyrgyzstani weightlifter, Bishkek , formerly Pishpek and Frunze, is the capital and largest city of Kyrgyzstan, in which country ?",Kyrgyz Republic,Kyrgyzstan,2
+2WikiMultihopQA,Llama-3.3-70B,Chain of Thought,"Which film whose director was born first, Zookeeper (Film) or Seeds Of Hope: Hiv/Aids In Ethiopia?",Seeds Of Hope: Hiv/Aids In Ethiopia,Seeds Of Hope,3
+2WikiMultihopQA,Llama-3.3-70B,Chain of Thought,"Who is the father of Alessandro Torlonia, 5Th Prince Of Civitella-Cesi?","Marino Torlonia, 4th Prince of Civitella-Cesi",Marino Torlonia,3
+2WikiMultihopQA,Llama-3.3-70B,Chain of Thought,What is the place of birth of Martín Cortés (Son Of Malinche)'s father?,"Medellín, Spain",Medellín,3
+MuSiQue,Llama-3.3-70B,Direct,Where is New Perry's place of death found in Florida?,in Northern Florida,Perry Florida,3
+MuSiQue,Llama-3.3-70B,Direct,"How were the people that the Somali Muslim Ajuran Empire made coins to proclaim independence from, expelled from the country where Star Cola is produced?",The dynasty regrouped and defeated the Portuguese,Portuguese,3
+MuSiQue,Llama-3.3-70B,Direct,Common Sense which was written by the author of The Age of Reason was an important work because?,crystallized the rebellious demand for independence from Great Britain,Influenced American Revolution,2
+HotpotQA,Llama-3.3-70B,Direct,Zsa Zsa Speck took part of his stage name from which mass murderer?,Richard Benjamin Speck,Richard Speck,2
+HotpotQA,Llama-3.3-70B,Direct,"In which 2014 American romantic teen drama, based on the novel of the same name by John Green, did Ansel Elgort play the character Augustus Waters?",Ansel Elgort,The Fault in Our Stars,4
+HotpotQA,Llama-3.3-70B,Direct,"What type of shoe did Tokuko Takagi wear that evolved o enable dancers to dance ""en pointe"" (on the tips of their toes) for extended periods of time?",Pointe shoes,Pointe shoe,1
+MuSiQue,gpt-4o,Multistep,Who is the sibling of the author of Kapalkundala?,Sanjib Chandra,Sanjeeb Chandra Chattopadhyay,2
+MuSiQue,gpt-4o,Multistep,Who constituted the freikorps in the country that the German Socialist Party was part of?,consisting largely of World War I veterans,World War I veterans and former soldiers,2
+MuSiQue,gpt-4o,Multistep,What is the symbol of the Saints from the city where the headquarters of the manufacturer of McAfee's Benchmark called?,fleur - de-lis,Fleur-de-lis,1
+HotpotQA,gpt-4o,Multistep,Who is older Mike Patton or Eric Bazilian?,Eric M. Bazilian,Eric Bazilian,2
+HotpotQA,gpt-4o,Multistep,Which composer is considered the founder of the Neapolitan school of opera: Gaetano Donizetti or Alessandro Scarlatti?,Pietro Alessandro Gaspare Scarlatti,Alessandro Scarlatti,2
+HotpotQA,gpt-4o,Multistep,Who were Jeff Celentano and Hugh Hudson?,film director,Filmmaker and director.,2
+MuSiQue,gpt-4o,Chain of Thought,What is another notable work by the illustrator of Sylvester and the Magic Pebble?,Doctor De Soto,Shrek!,5
+MuSiQue,gpt-4o,Chain of Thought,Where did they film The Beach in the country where Bodindecha died?,Ko Phi Phi Leh,"Maya Bay, Ko Phi Phi Le",3
+MuSiQue,gpt-4o,Chain of Thought,The London broil cut comes from a country with an emergency response guidebook with response guides in which section?,"The fourth section, with orange page borders",Orange section,2
+MuSiQue,gpt-4o,Top-k,What is the league of the Carolina Panthers an example of?,sports league,NFL,3
+MuSiQue,gpt-4o,Top-k,How long are the council terms in the second largest city in the US state focused by the cross-border transactions committee of the Department of Real Estate?,four-year,4 years,1
+MuSiQue,gpt-4o,Top-k,Arie Supriyatna's birth country was one participant in a Commission of Truth and Friendship. Who is the president of the other country that participated?,Francisco Guterres,José Ramos-Horta,5
+2WikiMultihopQA,gpt-4o,Chain of Thought,What is the place of birth of Catherine Barclay's husband?,Frankfurt am Main,"Unknown, fictional character",5
+2WikiMultihopQA,gpt-4o,Chain of Thought,What is the place of birth of Julien Bernard's father?,Luzy,"Luzy, France",3
+2WikiMultihopQA,gpt-4o,Chain of Thought,Who is Matilda Of Ringelheim's father-in-law?,Otto I,"Otto I, Duke of Saxony",3
+2WikiMultihopQA,gpt-4o,Top-k,Who is the paternal grandmother of Archduke Ferdinand Karl Joseph Of Austria-Este?,Maria Theresa of Austria,Maria Theresa,3
+2WikiMultihopQA,gpt-4o,Top-k,Which country Harald Ii Of Denmark's mother is from?,Polish,Poland,1
+2WikiMultihopQA,gpt-4o,Top-k,What nationality of the company that published Marquette Journal?,United States,American,1
+MuSiQue,gpt-4o,Direct,"Why was Common Sense, by the same author as Rights of Man, an important work?",crystallized the rebellious demand for independence from Great Britain,Advocated American independence,2
+MuSiQue,gpt-4o,Direct,"The actor who plays Barney in ""How I Met Your Mother"" plays what character in Batman Under the Red Hood?",Nightwing / Dick Grayson,Nightwing,3
+MuSiQue,gpt-4o,Direct,"In Willy Wonka and the Chocolate Factory, who played the character that the group who performs MMXIV was named after?",Julie Dawn Cole,Veruca Salt,4
+2WikiMultihopQA,gpt-4o,Direct,"When did Richard Annesley, 2Nd Earl Annesley's father die?",2 September 1770,1770,3
+2WikiMultihopQA,gpt-4o,Direct,Where was the performer of song (Last Night) I Heard You Crying In Your Sleep born?,Mount Olive,"Mount Olive, Alabama",3
+2WikiMultihopQA,gpt-4o,Direct,What nationality of the company that published Marquette Journal?,United States,American,1
+HotpotQA,gpt-4o,Top-k,The 2001 Webby Awards were held an an opera house located across from the rear facade of what government building?,City Hall,San Francisco City Hall,3
+HotpotQA,gpt-4o,Top-k,Valerie Agnew was a close friend of which lead singer of The Gits?,Mia Katherine Zapata,Mia Zapata,2
+HotpotQA,gpt-4o,Top-k,"ICarly starred which actress who got her start in ""School of Rock""?",Miranda Taylor Cosgrove,Miranda Cosgrove,2
+2WikiMultihopQA,gpt-4o,Multistep,Where was the place of death of the director of film Hitch Hike Lady?,Los Angeles,"Los Angeles, California",3
+2WikiMultihopQA,gpt-4o,Multistep,Where was the director of film Visit Or Memories And Confessions born?,Porto,"Porto, Portugal",3
+2WikiMultihopQA,gpt-4o,Multistep,What is the place of birth of the director of film Fangs Of Fate (1928 Film)?,Rockland,"Rockland, California, United States",3
+HotpotQA,gpt-4o,Chain of Thought,Danish UC submarines were built by the entrepreneur who is CEO of what company?,RML Spacelab ApS,RML Spacelab,3
+HotpotQA,gpt-4o,Chain of Thought,What TV network founded in 1984 is co owned by the Hearst Corporation and Disney?,Arts and Entertainment Network,A&E,2
+HotpotQA,gpt-4o,Chain of Thought,Steven Gilmore who has created promotional materials for the 2008 film The Dark Night is most known for his artwork in what other form?,album cover design,Album covers,1
+HotpotQA,gpt-4o,Direct,Where is the English mathematician who described Twistor Space in the 1960's the  Emeritus Rouse Ball Professor of Mathematics?,Mathematical Institute of the University of Oxford,University of Oxford,3
+HotpotQA,gpt-4o,Direct,"Who is older, Jennifer Capriati or Pierre-Hugues Herbert?",Jennifer Maria Capriati,Jennifer Capriati,2
+HotpotQA,gpt-4o,Direct,What is the birthplace of the narrator of Sex in a Cold Climate?,"Churchtown, Dublin, Ireland",Ireland,3
+HotpotQA,gpt-4o-mini,Chain of Thought,Where was the second most penalized brawl in the NBA?,Madison Square Garden,Knicks vs. Nuggets brawl,4
+HotpotQA,gpt-4o-mini,Chain of Thought,The Nakajima Ki-87 was a type of fighter aircraft designed specifically to attack what?,enemy aircraft,bombers,3
+HotpotQA,gpt-4o-mini,Chain of Thought,The western border of Rankin County is formed by a river that flows through which US states ?,Mississippi and Louisiana,"Mississippi, Louisiana",1
+MuSiQue,gpt-4o-mini,Direct,What were the Genesis's advantages over the platform of Pinball Quest?,built on 16-bit architectures and offered improved graphics and sound,"Graphics, sound, performance",2
+MuSiQue,gpt-4o-mini,Direct,Which iPod generation introduced compatibility with the industry standard connection that was first widely used at version 1.1?,third generation,iPod 3rd generation,3
+MuSiQue,gpt-4o-mini,Direct,"According to Pew, in 2010, what percent of Nigeria's population practiced the religion of most of the workers?",48.8 percent,50%,5
+HotpotQA,gpt-4o-mini,Top-k,The player who averaged 24.2 points for the Minnesota Timberwolves in the 2003-04 season played for what high school?,Farragut Career Academy,Farragut Career Academy High School.,3
+HotpotQA,gpt-4o-mini,Top-k,Which river in the English county of Warwickshire has a ferry named after the main antagonist from the William Shakespeare comedy Twelfth Night?,River Avon,Avon,3
+HotpotQA,gpt-4o-mini,Top-k,What profession did Charles Brabin and Karl Freund share?,film director,Director,2
+2WikiMultihopQA,gpt-4o-mini,Multistep,What nationality is Fastrada's husband?,Carolingian Empire,French.,5
+2WikiMultihopQA,gpt-4o-mini,Multistep,Where was the director of film The Green Fog born?,"Winnipeg, Manitoba",Winnipeg,3
+2WikiMultihopQA,gpt-4o-mini,Multistep,What is the place of birth of the director of film Melati Van Agam (1931 Film)?,Indonesian,Bukittinggi,3
+MuSiQue,gpt-4o-mini,Top-k,Why did Roncalli leave the city where the painter of Venus with a Mirror died?,for the conclave in Rome,To become pope.,2
+MuSiQue,gpt-4o-mini,Top-k,What does seal stand for in who is the operator of destroyer class of the operator of the USS Venus seals?,"Sea, Air, and Land","Sea, Air, Land",1
+MuSiQue,gpt-4o-mini,Top-k,What is the U.S. News ranking of the law school at Bruce Nissen's employer?,100,100th,1
+HotpotQA,gpt-4o-mini,Direct,In what war did Werner Schröer and Hans-Joachim Marseille fly?,World War II,WWII,2
+HotpotQA,gpt-4o-mini,Direct,The company that sponsored the 2010 Sydney to Hobart Yacht Race makes what?,Swiss luxury watchmaker,Rolex.,3
+HotpotQA,gpt-4o-mini,Direct,"Which author was born first, Lorraine Hansberry or Sandra Gulland?",Lorraine Vivian Hansberry,Lorraine Hansberry,2
+MuSiQue,gpt-4o-mini,Chain of Thought,What were the Genesis's advantages over the platform of the game Nightshade?,built on 16-bit architectures and offered improved graphics and sound,Graphics and sound advantages.,2
+MuSiQue,gpt-4o-mini,Chain of Thought,The league playing in the Thursday night football game is a type of what?,sports league,professional football league,3
+MuSiQue,gpt-4o-mini,Chain of Thought,"Who was played by the creator of Push, Nevada in Dazed and Confused?",Fred O'Bannion,O'Bannion,3
+HotpotQA,gpt-4o-mini,Multistep, Krusty Gets Busted revolves around the heist of what marketplace?,Kwik-E-Mart,convenience store,3
+HotpotQA,gpt-4o-mini,Multistep,Carl Theodor Dreyer and John Sturges have what career in common?,film director,Film directors.,1
+HotpotQA,gpt-4o-mini,Multistep,"James Manby Gully, was a Victorian medical doctor, well known for practising hydrotherapy, or the ""water cure"", he had many notable Victorian patients, including such figures as which Poet Laureate, of Great Britain and Ireland?","Alfred, Lord Tennyson",Tennyson,2
+2WikiMultihopQA,gpt-4o-mini,Chain of Thought,What nationality is Fastrada's husband?,Carolingian Empire,Frankish,3
+2WikiMultihopQA,gpt-4o-mini,Chain of Thought,Where was the mother of Henry Vassall Webster born?,London,England,3
+2WikiMultihopQA,gpt-4o-mini,Chain of Thought,Where was the place of death of Peggy Schuyler's father?,Albany,"Albany, New York",3
+MuSiQue,gpt-4o-mini,Multistep,Which section of the emergency response guidebook of the continent where bison antiquus are found contains the response guides?,"The fourth section, with orange page borders",Response Guides,5
+MuSiQue,gpt-4o-mini,Multistep,What Islamic denomination was the author of The Canon of Medicine thought to be a member of?,Sunni,Sunni Islam.,1
+MuSiQue,gpt-4o-mini,Multistep,"When were the American colonies lost by the country that owned the region that secured southern Lebanon in 1978, before it achieved country status?",1776,1783,5
+2WikiMultihopQA,gpt-4o-mini,Top-k,What is the place of birth of Martín Cortés (Son Of Malinche)'s father?,"Medellín, Spain",Spain,3
+2WikiMultihopQA,gpt-4o-mini,Top-k,Which award the director of film Pataakha received?,National Film Award for Best Music Direction,National Film Award,3
+2WikiMultihopQA,gpt-4o-mini,Top-k,Which award the director of film Tiramisu (2002 Film) earned?,Hong Kong Film Award for Best Director,Best Director award,3
+2WikiMultihopQA,gpt-4o-mini,Direct,What nationality is the performer of song Gone Fishin' (Song)?,America,American,1
+2WikiMultihopQA,gpt-4o-mini,Direct,Where did the performer of song Girlfriend (Alicia Keys Song) study?,Columbia,Columbia University,3
+2WikiMultihopQA,gpt-4o-mini,Direct,Which country Murtaza Nizam Shah I's father is from?,Ahmadnagar Sultanate,India,5

@@ -13,9 +13,6 @@ with app.setup:
         log_loss,
     )
 
-    from scipy.stats import norm
-
-    import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
 
 
@@ -25,7 +22,7 @@ with app.setup:
     import json
     import re
     import glob
-    from netcal.metrics import ECE, ACE
+    from netcal.metrics import ECE
 
 
 @app.cell
@@ -44,11 +41,12 @@ def _(df):
 
 @app.cell
 def _(get_results_df, main_df):
-    main_plot_df = get_results_df(main_df)
+    with mo.persistent_cache("main_plot"):
+        main_plot_df = get_results_df(main_df)
     return (main_plot_df,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(metric_mapping):
     _metric_names = list(metric_mapping.keys())
     metric_dropdown = mo.ui.dropdown(value=_metric_names[0], options=_metric_names)
@@ -56,7 +54,7 @@ def _(metric_mapping):
     return (metric_dropdown,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(main_plot_df, metric_dropdown, metric_mapping):
     _current_metric = metric_dropdown.value
     _pretty_metric = metric_mapping.get(_current_metric, _current_metric)
@@ -103,7 +101,7 @@ def _(metric_dropdown):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(main_plot_df):
     # Create a figure with 1 row and 2 columns using prefixed variables
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
@@ -144,7 +142,7 @@ def _():
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(main_plot_df, metric_mapping):
     # Create a figure with 1 row and 2 columns using prefixed variables
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
@@ -176,7 +174,7 @@ def _(main_plot_df, metric_mapping):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(main_df):
     _datasets = main_df["dataset"].unique()
     dataset_dropdown = mo.ui.dropdown(_datasets, value=_datasets[0])
@@ -184,7 +182,7 @@ def _(main_df):
     return (dataset_dropdown,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(
     conf_mapping,
     dataset_dropdown,
@@ -207,92 +205,29 @@ def _(
     return
 
 
-@app.cell(hide_code=True)
-def _(calculate_metrics):
-    def bootstrap_metrics(o, conf_type, n_bootstrap=1000, n_bins=10, seed=42):
-        """
-        Resamples prediction data in-memory without reloading from disk.
-        Computes point estimates, 95% CIs, and standard errors.
-
-        Assumes `o` can be sliced/indexed (e.g., pandas DataFrame, dict of arrays/lists).
-        """
-        rng = np.random.default_rng(seed)
-
-        # Extract total sample count
-        num_samples = len(o) if not isinstance(o, dict) else len(next(iter(o.values())))
-
-        # 1. Compute Point Estimate on original data
-        point_metrics = calculate_metrics(o, conf_type, n_bins=n_bins)
-
-        # 2. Run Bootstrap Loop in memory
-        bootstrap_results = {key: [] for key in point_metrics.keys()}
-
-        for _ in range(n_bootstrap):
-            # Sample indices WITH replacement
-            idx = rng.choice(num_samples, size=num_samples, replace=True)
-
-            # Resample data in memory (handles DataFrame or Dict)
-            if isinstance(o, pd.DataFrame):
-                o_sampled = o.iloc[idx]
-            elif isinstance(o, dict):
-                o_sampled = {k: np.array(v)[idx] for k, v in o.items()}
-            else:
-                # Fallback for custom list/array-like objects
-                o_sampled = [o[i] for i in idx]
-
-            boot_m = calculate_metrics(o_sampled, conf_type, n_bins=n_bins)
-
-            for key, val in boot_m.items():
-                bootstrap_results[key].append(val)
-
-        # 3. Aggregate Percentiles (95% CI) and Standard Error
-        final_metrics = {}
-        for key, point_val in point_metrics.items():
-            vals = np.array(bootstrap_results[key])
-            ci_lower = np.percentile(vals, 2.5)
-            ci_upper = np.percentile(vals, 97.5)
-            std_err = np.std(vals, ddof=1)
-
-            # Output clean scalar/tuple fields for downstream reporting
-            final_metrics[f"{key}"] = point_val
-            final_metrics[f"{key}_ci_lower"] = ci_lower
-            final_metrics[f"{key}_ci_upper"] = ci_upper
-            final_metrics[f"{key}_se"] = std_err
-
-        return final_metrics
-
-    def get_bootstrap_metrics(df, conf_type="verb", n_bootstrap=1000, n_bins=10):
-        metrics = []
-        for i, row in df.iterrows():
-            o = load_run_data(row)
-            m = bootstrap_metrics(o, conf_type, n_bootstrap=n_bootstrap, n_bins=10)
-            m["type"] = row["type"]
-            metrics.append(m)
-        return pd.DataFrame(metrics)
-
-    return (get_bootstrap_metrics,)
+@app.function
+def get_bootstrap_metrics(df, conf_type="verb", n_bootstrap=1000, n_bins=10):
+    metrics = []
+    for i, row in df.iterrows():
+        o = load_run_data(row)
+        mask = o[f"{conf_type}_conf"].notna()
+        y_true = np.array(o.loc[mask, "correct"]).astype(int)
+        y_conf = np.array(o.loc[mask, f"{conf_type}_conf"]).astype(float)
+        m = bootstrap_metrics(y_true, y_conf, conf_type=conf_type, n_bootstrap=n_bootstrap, n_bins=n_bins)
+        m["type"] = row["type"]
+        metrics.append(m)
+    return pd.DataFrame(metrics)
 
 
 @app.cell
-def _(get_bootstrap_metrics, prompt_types_df):
-    _df = get_bootstrap_metrics(prompt_types_df, n_bootstrap=1000)
-    prompt_types_metric_df = _df
-    _df
+def _(prompt_types_df):
+    with mo.persistent_cache("prompt_types_metrics"):
+        prompt_types_metric_df = get_bootstrap_metrics(prompt_types_df, n_bootstrap=1000)
+    prompt_types_metric_df
     return (prompt_types_metric_df,)
 
 
-@app.cell
-def _(metric_mapping):
-    prompt_metric_dropdown = mo.ui.dropdown(
-        value="acc",
-        options=list(metric_mapping.keys()),
-        label="Select Metric for Prompt Comparison",
-    )
-    prompt_metric_dropdown
-    return
-
-
-@app.function(hide_code=True)
+@app.function
 def plot_metric_with_ci(df, metric="acc", title=None):
     plt.figure(figsize=(8, max(4, len(df) * 0.5)), dpi=120)
 
@@ -374,7 +309,7 @@ def _(prompt_types_metric_df):
 
 @app.cell
 def _(index_name_mapping, metric_mapping):
-    def format_summary_table(df, indices, metrics=["acc", "ece", "ace", "brier", "nll", "auc_roc"]):
+    def format_summary_table(df, indices, metrics=["acc", "ece", "brier", "nll", "auc_roc"]):
         formatted_df = pd.DataFrame()
         for i in indices:
             col_name = index_name_mapping[i]
@@ -435,8 +370,9 @@ def _(thinking_comp_df):
 
 
 @app.cell
-def _(get_bootstrap_metrics, thinking_comp_df):
-    thinking_comp_boot_metrics_verb = get_bootstrap_metrics(thinking_comp_df, n_bootstrap=1000)
+def _(thinking_comp_df):
+    with mo.persistent_cache("thinking_comp_metrics_verb"):
+        thinking_comp_boot_metrics_verb = get_bootstrap_metrics(thinking_comp_df, n_bootstrap=1000)
     return (thinking_comp_boot_metrics_verb,)
 
 
@@ -449,12 +385,6 @@ def _(thinking_comp_boot_metrics_verb, thinking_comp_df):
         axis = 1
     )
     return (thinking_comp_plot_df,)
-
-
-@app.cell
-def _(get_bootstrap_metrics, thinking_comp_df):
-    thinking_comp_boot_metrics_log = get_bootstrap_metrics(thinking_comp_df, conf_type="log", n_bootstrap=1000)
-    return
 
 
 @app.cell
@@ -479,7 +409,7 @@ def _(metric_mapping, thinking_comp_plot_df):
 
     _df_melted2 = thinking_comp_plot_df.melt(
         id_vars=[ "acc"],
-        value_vars=["ece", "ace", "brier"],
+        value_vars=["ece", "brier"],
         var_name="metric",
         value_name="value",
     )
@@ -538,11 +468,6 @@ def _(metric_mapping, thinking_comp_plot_df):
 
     # Stack the generated figures vertically
     mo.vstack(_figs)
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -615,7 +540,7 @@ def load_run_data(row):
 
 
 @app.cell
-def _(calculate_metrics, conf_mapping, dataset_mapping):
+def _(conf_mapping, dataset_mapping):
     # selected_df = main_df[main_df["dataset"] == dataset_dropdown.value].reset_index()
     def get_results_df(df):
 
@@ -623,7 +548,10 @@ def _(calculate_metrics, conf_mapping, dataset_mapping):
             metrics = []
             for i, row in df.iterrows():
                 o = load_run_data(row)
-                m = calculate_metrics(o, type, n_bins=10)
+                mask = o[f"{type}_conf"].notna()
+                y_true = np.array(o.loc[mask, "correct"]).astype(int)
+                y_conf = np.array(o.loc[mask, f"{type}_conf"]).astype(float)
+                m = calculate_metrics(y_true, y_conf, method=type, n_bins=10)
                 metrics.append(m)
 
             return metrics
@@ -681,76 +609,95 @@ def _():
     return
 
 
-@app.cell
-def _(get_e, y_conf_jittered):
-    def compute_ace_with_jitter(y_conf, y_true, n_bins=10):
-        get_e
-    
-        return ECE(bins=n_bins, equal_intervals=False).measure(y_conf_jittered, y_true)
-
-    def calculate_metrics(run_file, method="verb", n_bins=10):
-        mask = run_file[f"{method}_conf"].notna()
-
-        # Cast to numpy arrays to ensure safe math operations later
-        y_true = np.array(run_file.loc[mask, "correct"]).astype(int)
-        y_conf = np.array(run_file.loc[mask, f"{method}_conf"]).astype(float)
-
-        metrics = {}
-
-        # --- Standard Metrics ---
-        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true,)
-
-        # ACE (Equal frequency / quantile binning)
-        metrics["ace"] = compute_ace_with_jitter(y_conf, y_true, n_bins=n_bins)
-    
-        metrics["brier"] = brier_score_loss(y_true, y_conf)
-        metrics["ap_success"] = average_precision_score(y_true, y_conf)
-        metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
-        metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
-        metrics["acc"] = run_file["correct"].mean()
-
-        # Exponentially penalizes high confidence errors
-        metrics["nll"] = log_loss(y_true, y_conf)
-
-        return metrics
-
-    return (calculate_metrics,)
+@app.function
+def compute_verbalized_calibration_error(y_true, y_conf):
+    df = pd.DataFrame({"y_true": y_true, "y_conf": y_conf})
+    binned = df.groupby("y_conf").agg(
+        accuracy=("y_true", "mean"),
+        count=("y_true", "count")
+    ).reset_index()
+    binned["error"] = np.abs(binned["accuracy"] - binned["y_conf"])
+    total_samples = len(y_true)
+    binned["weight"] = binned["count"] / total_samples
+    return np.sum(binned["weight"] * binned["error"])
 
 
 @app.function
-def calculate_ece(y_correct, y_conf, n_bins=10):
+def calculate_metrics(y_true, y_conf, method="verb", n_bins=10):
+    metrics = {}
+
+    if method == "verb":
+        metrics["ece"] = compute_verbalized_calibration_error(y_true, y_conf)
+    else:
+        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true)
+
+    metrics["brier"] = brier_score_loss(y_true, y_conf)
+    metrics["ap_success"] = average_precision_score(y_true, y_conf)
+    metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
+    metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
+    metrics["acc"] = y_true.mean()
+    metrics["nll"] = log_loss(y_true, y_conf)
+
+    return metrics
+
+
+@app.function
+def bootstrap_metrics(y_true, y_conf, conf_type="verb", n_bootstrap=1000, n_bins=10, seed=42):
     """
-    Calculate Expected Calibration Error (ECE).
+    Compute point estimates and bootstrap confidence intervals for various metrics.
 
-    Args:
-        y_correct (np.ndarray): 1D array of binary indicators (1 if the model's
-                                prediction was correct, 0 if it was wrong).
-        y_conf (np.ndarray): 1D array of predicted confidences (probabilities).
-        n_bins (int): Number of bins to divide the [0, 1] interval.
-    """
-    bin_edges = np.linspace(0, 1, n_bins + 1)
+    Parameters:
+    - y_true: Ground truth binary labels (0 or 1).
+    - y_conf: Predicted confidence scores (between 0 and 1).
+    - conf_type: Type of confidence ('verb' or 'log').
+    - n_bootstrap: Number of bootstrap samples to draw.
+    - n_bins: Number of bins for ECE calculation.
+    - seed: Random seed for reproducibility.
+    
+    Returns:
+    - A dictionary containing point estimates, 95% confidence intervals, and standard errors for each
+        metric.
+        """
+    rng = np.random.default_rng(seed)
+    num_samples = len(y_true)
 
-    # digitize returns 1 to n_bins+1. Subtract 1 to get 0-indexed bins.
-    # We use np.clip to ensure that confidence exactly equal to 1.0 is
-    # placed in the last bin instead of falling out of bounds.
-    bin_indices = np.clip(np.digitize(y_conf, bin_edges) - 1, 0, n_bins - 1)
+    point_metrics = calculate_metrics(y_true, y_conf, method=conf_type, n_bins=n_bins)
 
-    ece = 0.0
-    n_total = len(y_correct)
+    bootstrap_results = {key: [] for key in point_metrics.keys()}
 
-    for i in range(n_bins):
-        bin_mask = bin_indices == i
-        if np.any(bin_mask):
-            bin_accuracy = np.mean(y_correct[bin_mask])
-            bin_confidence = np.mean(y_conf[bin_mask])
+    for _ in range(n_bootstrap):
+        idx = rng.choice(num_samples, size=num_samples, replace=True)
+        boot_m = calculate_metrics(y_true[idx], y_conf[idx], method=conf_type, n_bins=n_bins)
 
-            # Weighting by the fraction of samples in this bin
-            ece += np.abs(bin_accuracy - bin_confidence) * np.sum(bin_mask) / n_total
+        for key, val in boot_m.items():
+            bootstrap_results[key].append(val)
 
-    return ece
+    # 3. Aggregate Percentiles (95% CI) and Standard Error
+    final_metrics = {}
+    for key, point_val in point_metrics.items():
+        vals = np.array(bootstrap_results[key])
+        ci_lower = np.percentile(vals, 2.5)
+        ci_upper = np.percentile(vals, 97.5)
+        std_err = np.std(vals, ddof=1)
+
+        # Output clean scalar/tuple fields for downstream reporting
+        final_metrics[f"{key}"] = point_val
+        final_metrics[f"{key}_ci_lower"] = ci_lower
+        final_metrics[f"{key}_ci_upper"] = ci_upper
+        final_metrics[f"{key}_se"] = std_err
+
+    return final_metrics
 
 
-@app.function(hide_code=True)
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Preprocess
+    """)
+    return
+
+
+@app.function
 def preprocess_gsm8k(df):
     df["log_conf"] = df["logprobs"].apply(
         lambda xs: np.exp(sum(xs) / len(xs)) if xs else 0.5
@@ -771,7 +718,7 @@ def preprocess_gsm8k(df):
     df["correct"] = df["answer"] == df["prediction"]
 
 
-@app.function(hide_code=True)
+@app.function
 def preprocess_mmlu(df):
     df["correct"] = df["answer"] == df["prediction"]
 
@@ -789,7 +736,7 @@ def preprocess_mmlu(df):
     df["log_conf"] = df.apply(get_log_conf, axis=1)
 
 
-@app.function(hide_code=True)
+@app.function
 def preprocess_ai2_arc(df):
     df["correct"] = df["answer"] == df["prediction"]
 
@@ -807,38 +754,14 @@ def preprocess_ai2_arc(df):
     df["log_conf"] = df.apply(get_log_conf, axis=1)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _():
-    def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10, jitter_eps=1e-4):
-        """
-        Create equal-frequency bins based on predicted probabilities and calculate mean accuracy per bin.
-        Jitter is added to break probability ties during bin creation.
-    
-        Parameters
-        ----------
-        y_true : array-like
-            True binary labels (0 or 1).
-        y_prob : array-like
-            Predicted probabilities for the positive class (floats in [0, 1]).
-        n_bins : int
-            Number of equal-frequency bins to create.
-        jitter_eps : float, default=1e-4
-            Magnitude of uniform noise added to break exact ties in probabilities.
-        
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns: bin, mean_y, std_y, mean_conf, n, start, end, width.
-        """
+    def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10):
         y_prob = np.asarray(y_prob)
         y_true = np.asarray(y_true)
 
-        # 1. Add subtle jitter to break ties in probabilities
-        jitter = np.random.uniform(-jitter_eps, jitter_eps, size=y_prob.shape)
-        y_prob_jittered = np.clip(y_prob + jitter, 0.0, 1.0)
-
         # 2. Determine bin assignments using the jittered probabilities
-        bins = pd.qcut(y_prob_jittered, n_bins, labels=False, duplicates="drop")
+        bins = pd.qcut(y_prob, n_bins, labels=False, duplicates="drop")
 
         # 3. Store ORIGINAL probabilities so final statistics aren't noisy
         df = pd.DataFrame({"y_true": y_true, "y_prob": y_prob, "bin": bins})
@@ -940,7 +863,6 @@ def _():
 def _():
     metric_mapping = {
         "ece": "Expected Calibration Error (ECE)",
-        "ace": "Adaptive Calibration Error (ACE)",
         "brier": "Brier Score",
         "ap_success": "Average Precision (Success)",
         "ap_errors": "Average Precision (Errors)",
@@ -965,10 +887,8 @@ def _():
     return conf_mapping, dataset_mapping, index_name_mapping, metric_mapping
 
 
-@app.cell(hide_code=True)
-def _(df):
-    from pathlib import Path
-
+@app.cell
+def _(Path, df):
     def remove_all_tags(selection):
         for i, row in selection.iterrows():
             file_path = Path(row["folder"]) / "metadata.json"
@@ -1050,10 +970,6 @@ def _(df):
     return
 
 
-@app.cell
-def _():
-    return
-
-
 if __name__ == "__main__":
     app.run()
+

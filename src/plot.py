@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 from .utils import compute_bin_stats, compute_equal_frequency_bin_stats
 
+
 def confidence_bar_plot(y_true, y_probs, bins=None, ax=None):
     """
     y_true: list of 1D arrays (or a single 1D array)
@@ -18,7 +19,7 @@ def confidence_bar_plot(y_true, y_probs, bins=None, ax=None):
         y_probs = np.concatenate(y_probs)
 
     if bins is None:
-        bins = np.linspace(0,1, 11)
+        bins = np.linspace(0, 1, 11)
 
     bin_stats = compute_bin_stats(y_true, y_probs, bins)
 
@@ -29,23 +30,20 @@ def confidence_bar_plot(y_true, y_probs, bins=None, ax=None):
     widths = bin_stats["width"]
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(6,6))
+        fig, ax = plt.subplots(figsize=(6, 6))
 
     cmap = plt.get_cmap("Blues")
-    norm = (n - np.min(n)) / (np.max(n) - np.min(n) + 1e-8) 
+    norm = (n - np.min(n)) / (np.max(n) - np.min(n) + 1e-8)
 
     for xi, yi, ni, wi, yerr in zip(x, y, norm, widths, y_errs):
         ax.bar(xi, yi, width=wi, color=cmap(ni), yerr=yerr, edgecolor="black")
 
+    ax.plot([0, 1], [0, 1], "--", alpha=0.7, color="gray")
 
-    ax.plot([0, 1], [0, 1], '--', alpha=0.7, color='gray')
-
-    ax.set_xlim(0,1)
+    ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-
     return ax
-
 
 
 def confidence_plot(y_true, y_probs, ax=None, label=None, bins=10):
@@ -56,16 +54,15 @@ def confidence_plot(y_true, y_probs, ax=None, label=None, bins=10):
 
     bin_stats = compute_equal_frequency_bin_stats(y_true, y_probs, n_bins=bins)
 
-
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
-        ax.plot([0, 1], [0, 1], '--', color='gray', label='Perfect calibration')
+        ax.plot([0, 1], [0, 1], "--", color="gray", label="Perfect calibration")
         ax.set_xlabel("Confidence")
         ax.set_ylabel("Accuracy")
-        ax.grid(True, linestyle='--', alpha=0.6)
+        ax.grid(True, linestyle="--", alpha=0.6)
 
-    label = label or 'Model calibration'
-    ax.plot(bin_stats["mean_conf"], bin_stats["mean_y"], '.-',  label=label)
+    label = label or "Model calibration"
+    ax.plot(bin_stats["mean_conf"], bin_stats["mean_y"], ".-", label=label)
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -85,14 +82,13 @@ def interploated_confidence_plot(y, x, n_bins=10, error_band=None, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
         plt.figure(figsize=(6, 6))
-        ax.plot([0, 1], [0, 1], '--', color='gray')
+        ax.plot([0, 1], [0, 1], "--", color="gray")
 
     bins = []
 
     for yi, xi in zip(y, x):
         bin_stats = compute_equal_frequency_bin_stats(yi, xi, n_bins=n_bins)
         bins.append((bin_stats["mean_conf"].values, bin_stats["mean_y"].values))
-
 
     # Determine global min/max from all runs
     all_conf = np.concatenate([conf for conf, _ in bins])
@@ -110,16 +106,15 @@ def interploated_confidence_plot(y, x, n_bins=10, error_band=None, ax=None):
 
     ax.plot(fixed_x, fixed_y)
 
-
     if error_band is None:
         pass
-    elif error_band == 'std':
+    elif error_band == "std":
         std = np.std(interpolated_y, axis=0)
         ax.fill_between(fixed_x, fixed_y - std, fixed_y + std, alpha=0.3)
-    elif error_band == 'stderr':
+    elif error_band == "stderr":
         stderr = np.std(interpolated_y, axis=0) / np.sqrt(len(interpolated_y))
         ax.fill_between(fixed_x, fixed_y - stderr, fixed_y + stderr, alpha=0.3)
-    elif error_band == 'minmax':
+    elif error_band == "minmax":
         min_y = np.min(interpolated_y, axis=0)
         max_y = np.max(interpolated_y, axis=0)
         ax.fill_between(fixed_x, min_y, max_y, alpha=0.3)
@@ -127,13 +122,6 @@ def interploated_confidence_plot(y, x, n_bins=10, error_band=None, ax=None):
         raise ValueError("Invalid error_band option")
 
     return ax
-
-
-
-
-
-
-
 
 
 def confidence_plot_multi(confs_list, acc_list, ax=None, label=None, n_points=200):
@@ -144,10 +132,10 @@ def confidence_plot_multi(confs_list, acc_list, ax=None, label=None, n_points=20
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
-        ax.plot([0, 1], [0, 1], '--', color='gray', label='Perfect calibration')
+        ax.plot([0, 1], [0, 1], "--", color="gray", label="Perfect calibration")
         ax.set_xlabel("Confidence")
         ax.set_ylabel("Accuracy")
-        ax.grid(True, linestyle='--', alpha=0.6)
+        ax.grid(True, linestyle="--", alpha=0.6)
 
     label = label or "Model calibration"
 
@@ -167,15 +155,10 @@ def confidence_plot_multi(confs_list, acc_list, ax=None, label=None, n_points=20
     stderr = std / np.sqrt(len(y_interp))
 
     # --- Plot mean curve ---
-    ax.plot(x_common, mean, '-', linewidth=2, label=label)
+    ax.plot(x_common, mean, "-", linewidth=2, label=label)
 
     # --- Plot shaded standard error band ---
-    ax.fill_between(
-        x_common,
-        mean - stderr,
-        mean + stderr,
-        alpha=0.3
-    )
+    ax.fill_between(x_common, mean - stderr, mean + stderr, alpha=0.3)
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)

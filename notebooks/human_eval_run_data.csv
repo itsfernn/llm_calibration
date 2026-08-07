@@ -1,0 +1,50 @@
+,model,dataset,prompt,em,gpt_eval,changed,pct_changed
+24,gpt-4o,MuSiQue,Multistep,160,358,198,0.198
+34,gpt-4o,HotpotQA,Chain of Thought,539,733,194,0.1941941941941942
+26,gpt-4o,MuSiQue,Chain of Thought,152,345,193,0.193
+25,gpt-4o,HotpotQA,Multistep,536,723,187,0.187
+19,Llama-3.3-70B,HotpotQA,Chain of Thought,461,645,184,0.18529707955689828
+18,Llama-3.3-70B,MuSiQue,Chain of Thought,130,313,183,0.1844758064516129
+38,gpt-4o-mini,HotpotQA,Top-k,313,492,179,0.179
+36,gpt-4o-mini,HotpotQA,Chain of Thought,406,584,178,0.178
+0,DeepSeek-V3,HotpotQA,Chain of Thought,493,670,177,0.17735470941883769
+28,gpt-4o,2WikiMultihopQA,Chain of Thought,440,617,177,0.177
+9,DeepSeek-V3,MuSiQue,Chain of Thought,146,321,175,0.176056338028169
+35,gpt-4o,HotpotQA,Direct,491,660,169,0.169
+5,DeepSeek-V3,MuSiQue,Multistep,144,312,168,0.168
+43,gpt-4o-mini,HotpotQA,Multistep,404,570,166,0.166
+27,gpt-4o,MuSiQue,Top-k,98,263,165,0.165
+3,DeepSeek-V3,MuSiQue,Top-k,65,229,164,0.164
+20,Llama-3.3-70B,HotpotQA,Top-k,373,537,164,0.164
+1,DeepSeek-V3,HotpotQA,Multistep,490,652,162,0.162
+15,Llama-3.3-70B,MuSiQue,Multistep,127,288,161,0.16132264529058116
+2,DeepSeek-V3,HotpotQA,Top-k,369,529,160,0.16
+14,Llama-3.3-70B,HotpotQA,Multistep,480,640,160,0.16
+32,gpt-4o,HotpotQA,Top-k,482,642,160,0.16
+33,gpt-4o,2WikiMultihopQA,Multistep,453,610,157,0.157
+30,gpt-4o,MuSiQue,Direct,113,268,155,0.155
+4,DeepSeek-V3,MuSiQue,Direct,65,219,154,0.154
+23,Llama-3.3-70B,HotpotQA,Direct,310,458,148,0.17149478563151796
+7,DeepSeek-V3,HotpotQA,Direct,413,554,141,0.141
+41,gpt-4o-mini,HotpotQA,Direct,335,474,139,0.139
+45,gpt-4o-mini,MuSiQue,Multistep,102,239,137,0.137
+21,Llama-3.3-70B,2WikiMultihopQA,Chain of Thought,417,553,136,0.136
+10,DeepSeek-V3,2WikiMultihopQA,Chain of Thought,459,593,134,0.1342685370741483
+40,gpt-4o-mini,MuSiQue,Top-k,42,175,133,0.133
+37,gpt-4o-mini,MuSiQue,Direct,41,174,133,0.133
+42,gpt-4o-mini,MuSiQue,Chain of Thought,96,222,126,0.126
+8,DeepSeek-V3,2WikiMultihopQA,Multistep,444,565,121,0.121
+17,Llama-3.3-70B,MuSiQue,Top-k,53,174,121,0.121
+22,Llama-3.3-70B,MuSiQue,Direct,63,178,115,0.11758691206543967
+13,Llama-3.3-70B,2WikiMultihopQA,Multistep,425,530,105,0.105
+11,DeepSeek-V3,2WikiMultihopQA,Top-k,292,385,93,0.093
+12,Llama-3.3-70B,2WikiMultihopQA,Top-k,311,403,92,0.092
+47,gpt-4o-mini,2WikiMultihopQA,Direct,276,361,85,0.085
+6,DeepSeek-V3,2WikiMultihopQA,Direct,322,405,83,0.083
+29,gpt-4o,2WikiMultihopQA,Top-k,346,428,82,0.082
+46,gpt-4o-mini,2WikiMultihopQA,Top-k,267,349,82,0.082
+31,gpt-4o,2WikiMultihopQA,Direct,351,432,81,0.081
+16,Llama-3.3-70B,2WikiMultihopQA,Direct,328,405,77,0.07817258883248732
+39,gpt-4o-mini,2WikiMultihopQA,Multistep,342,418,76,0.076
+44,gpt-4o-mini,2WikiMultihopQA,Chain of Thought,346,419,73,0.073
+

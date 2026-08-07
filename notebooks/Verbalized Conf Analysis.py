@@ -15,16 +15,16 @@ with app.setup:
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
-    from src import scaling, metrics
     import json
     from pathlib import Path
+
+    from src.metrics import bootstrap_metrics
 
     import seaborn as sns
 
 
 @app.cell
 def _(prompt_mapping):
-    CV_FOLDS = 5
     prompt_order_raw = ["direct", "top-k",  "multistep", "cot",]
     prompt_order = [prompt_mapping[p] for p in prompt_order_raw]
     return (prompt_order,)
@@ -84,6 +84,12 @@ def _(runs_df):
 
 
 @app.cell
+def _():
+    ### Reliability diagrams
+    return
+
+
+@app.cell
 def _(
     plot_reliability_bar_diagrams_sns,
     plot_reliability_diagrams,
@@ -99,7 +105,13 @@ def _(
 
 
 @app.cell
-def _(datasets_dropdown, models_dropdown, prepare_bins, prompt_order):
+def _(
+    confidence_bar_plot_alt,
+    datasets_dropdown,
+    models_dropdown,
+    prepare_bins,
+    prompt_order,
+):
     def plot_reliability_bar_diagrams_sns(df):
         """Plot calibration reliability diagram."""
         bins_df = prepare_bins(df)
@@ -128,12 +140,6 @@ def _(datasets_dropdown, models_dropdown, prepare_bins, prompt_order):
         return g
 
     return (plot_reliability_bar_diagrams_sns,)
-
-
-@app.cell
-def _(P):
-    P
-    return
 
 
 @app.cell
@@ -317,7 +323,7 @@ def _(density_model_dropdown, get_run_df, prompt_order, runs_df):
     return g, plot_df
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(density_model_dropdown, g, plot_df, prompt_order):
     # --- Plot: ECDF ---
     _selected_model = density_model_dropdown.value
@@ -367,7 +373,7 @@ def _(density_model_dropdown, g, plot_df, prompt_order):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(g, metrics_df, plot_df, prompt_order):
     plot_df["Outcome"] = plot_df["gpt_eval"].map({1: "Correct", 0: "Incorrect"})
 
@@ -417,7 +423,7 @@ def _(g, metrics_df, plot_df, prompt_order):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(density_model_dropdown, plot_df, prompt_order, true_false_palette):
     _title = "Confidence Separation: Correct vs. Incorrect Predictions"
 
@@ -464,6 +470,14 @@ def _(density_model_dropdown, plot_df, prompt_order, true_false_palette):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Metrics
+    """)
+    return
+
+
 @app.cell
 def _(metrics_df):
     metrics_df
@@ -476,53 +490,47 @@ def _(get_run_df, runs_df):
 
     for _, _run in runs_df.iterrows():
         _run_df = get_run_df(_run)
-        m = calculate_metrics(_run_df, corr_col="gpt_eval")
+        is_verbalized = _run["prompt"] != "Multistep"
+        print(f"Calculating metrics for {_run['model']} on {_run['dataset']} with prompt {_run['prompt']} (Verbalized: {is_verbalized})")
+        y_true = _run_df["em"].values & _run_df["gpt_eval"].values
+        y_conf = _run_df["confidence"].values
+        m = bootstrap_metrics(y_true, y_conf, d_ece=is_verbalized)
         _metrics.append(m)
 
     metrics_df = pd.concat([runs_df, pd.DataFrame(_metrics)], axis=1)
     return (metrics_df,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(metrics_df, prompt_order):
     # Create a figure with 1 row and 2 columns using prefixed variables
-    _fig, _ax1 = plt.subplots()
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
     _fig.suptitle("Error Detection (AP) vs. Model Accuracy")
 
     # --- Left Plot: Verbalized Confidences ---
-    _ax1.plot([1, 0], "--", color="gray", label="Random Baseline")
+    _ax1.plot([0, 1], "--", color="gray", label="Random Baseline")
     sns.scatterplot(
-        data=metrics_df, x="auc_roc", y="ap_errors", hue="prompt", hue_order=prompt_order, ax=_ax1, s=80
+        data=metrics_df, x="acc", y="ap_success", hue="prompt", hue_order=prompt_order, ax=_ax1, s=80, alpha=0.8
     )
 
-    _ax1.set_title("Verbalized Confidences")
+    _ax1.set_title("Success Detection (AP)")
     _ax1.set_xlim(0, 1)
     _ax1.set_ylim(0, 1)
     _ax1.set_xlabel("Accuracy")
     _ax1.set_ylabel("Error Detection (AP)")
-    return
 
+    # --- Right Plot: Error Detection ---
+    _ax2.plot([1, 0], "--", color="gray", label="Random Baseline")
+    sns.scatterplot(
+        data=metrics_df, x="acc", y="ap_errors", hue="prompt", hue_order=prompt_order, ax=_ax2, s=80, alpha=0.8
+    )
 
-@app.cell(hide_code=True)
-def _(metric_mapping, metrics_df, prompt_order):
-    # Create a figure with 1 row and 2 columns using prefixed variables
-    _fig, _ax1 = plt.subplots()
-
-    x_var = "acc"
-    y_var = "nll"
-
-    _fig.suptitle(f"{metric_mapping[x_var]} vs. {metric_mapping[y_var]}")
-
-    # --- Left Plot: Verbalized Confidences ---
-    sns.scatterplot(data=metrics_df, x=x_var, y=y_var, hue="prompt", hue_order=prompt_order, ax=_ax1, s=80)
-
-    _ax1.set_title("Verbalized Confidences")
-
-    _ax1.set_xlabel("Accuracy")
-    _ax1.set_ylabel("Error Detection (AP)")
-
-    _fig
+    _ax2.set_title("Error Detection (AP)")
+    _ax2.set_xlim(0, 1)
+    _ax2.set_ylim(0, 1)
+    _ax2.set_xlabel("Accuracy")
+    _ax2.set_ylabel("Error Detection (AP)")
     return
 
 
@@ -537,21 +545,118 @@ def _(metric_mapping):
 @app.cell(hide_code=True)
 def _(metric_mapping, metrics_df, prompt_order, scatter_metric_dropdown):
     _selected_metric = scatter_metric_dropdown.value
-    _ax = sns.stripplot(
-        metrics_df,
-        x="prompt",
-        hue="prompt",
-        order=prompt_order,
-        y=_selected_metric,
-        jitter=0.1,        # Adds horizontal noise to reveal overlapping dots
-        size=8,
-        alpha=0.6,
+    _se_column = f"{_selected_metric}_se"
+
+    df_plot = metrics_df.copy()
+
+    # 1. Map prompts to numeric X positions and add horizontal jitter
+    prompt_map = {p: i for i, p in enumerate(prompt_order)}
+    df_plot["x_pos"] = df_plot["prompt"].map(prompt_map)
+
+    # Add jitter between -0.1 and 0.1
+    rng = np.random.default_rng(42)
+    df_plot["x_jittered"] = df_plot["x_pos"] + rng.uniform(
+        -0.1, 0.1, size=len(df_plot)
     )
+
+    # 2. Configure variable size vs. default scalar size
+    has_se = _se_column in df_plot.columns
+    size_kwargs = (
+        {"size": _se_column, "sizes": (20, 200)} if has_se else {"s": 60}
+    )
+
+    # 3. Plot with scatterplot (natively maps size & hue)
+    _ax = sns.scatterplot(
+        data=df_plot,
+        x="x_jittered",
+        y=_selected_metric,
+        hue="prompt",
+        hue_order=prompt_order,
+        legend=False,
+        alpha=0.6,
+        **size_kwargs,
+    )
+
+    # 4. Restore original categorical X tick labels
+    _ax.set_xticks(range(len(prompt_order)))
+    _ax.set_xticklabels(prompt_order)
 
     _ax.set_title(f"{metric_mapping[_selected_metric]}")
     _ax.set_ylabel(f"{metric_mapping[_selected_metric]}")
     _ax.set_xlabel("")
-    _ax
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## Human Eval
+    """)
+    return
+
+
+@app.cell
+def _(get_run_df, runs_df):
+    eval_change_stats = []
+
+    for _, _run in runs_df.iterrows():
+        _run_df = get_run_df(_run)
+
+        # Count how many of those were actually correct (negative -> positive change)
+        gpt_eval = ((_run_df["gpt_eval"] == 1) | (_run_df["em"] == 1)).sum()
+        em = ((_run_df["em"] == 1)).sum()
+        # Percentage of changed answers
+        changed = gpt_eval - em
+        pct_changed = changed / len(_run_df)
+
+
+        eval_change_stats.append({
+            "model": _run.get("model"),
+            "dataset": _run.get("dataset"),
+            "prompt": _run.get("prompt"),
+            "em" : em,
+            "gpt_eval": gpt_eval,
+            "changed": changed,
+            "pct_changed": pct_changed,
+        })
+
+    eval_change_stats_df = pd.DataFrame(eval_change_stats)
+    eval_change_stats_df
+    return
+
+
+@app.cell
+def _(get_run_df, runs_df):
+    changed_samples_dfs = []
+
+    for _, _run in runs_df.iterrows():
+        _run_df = get_run_df(_run)
+
+        # Only keep rows where the answer changed (model said correct but was actually wrong)
+        changed_mask = (_run_df["gpt_eval"] == 1) & (_run_df["em"] == 0)
+        changed_df = _run_df[changed_mask]
+
+        # Sample up to 3 random rows (fewer if fewer are available)
+        sample = changed_df.sample(n=min(3, len(changed_df)), random_state=42)
+
+        # Attach run metadata
+        sample = sample.copy()
+        sample["model"] = _run.get("model")
+        sample["dataset"] = _run.get("dataset")
+        sample["prompt"] = _run.get("prompt")
+
+        changed_samples_dfs.append(sample)
+
+    changed_samples_df = pd.concat(changed_samples_dfs, ignore_index=True)
+    changed_samples_df[["dataset", "model", "prompt", "question", "answer", "prediction"]]
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Dependencies
+    """)
     return
 
 
@@ -586,86 +691,6 @@ def compute_bin_stats(y_true, y_prob, bins=None, n_bins=10):
     stats["std_err"] = stats["std_y"] / (np.sqrt(stats["n"]) + 1e-8)  # Avoid division by zero
 
     return stats
-
-
-@app.function
-def confidence_bar_plot_alt_old(
-    data=None, x=None, y=None, n="n", widths="width", std_err="std_err", **kwargs
-):
-    ax = kwargs.get("ax") or plt.gca()
-
-    # Extract the actual Series from the facet's DataFrame subset
-    x_val = data[x]
-    y_val = data[y]
-    n_val = data[n]
-    w_val = data[widths]
-    err_val = data[std_err]
-
-    # Normalize n for colormap
-    norm = mcolors.Normalize(vmin=n_val.min(), vmax=n_val.max())
-    colors = plt.cm.Blues(norm(n_val))
-
-    # Vectorized bar plot
-    ax.bar(
-        x_val,
-        y_val,
-        width=w_val,
-        color=colors,
-        yerr=err_val,
-        edgecolor="black",
-    )
-    ax.grid(True, linestyle="--", alpha=0.6)
-
-    # Reference diagonal line
-    ax.plot([0, 1], [0, 1], "--", alpha=0.7, color="gray")
-    ax.set(xlim=(0, 1.01), ylim=(0, 1))
-
-    return ax
-
-
-@app.function
-def confidence_bar_plot_alt(data=None, ax=None, **kwargs):
-    ax = kwargs.get("ax") or plt.gca()
-
-    x = data["mid"]
-    y = data["mean_y"].fillna(0)
-    n = data["n"].fillna(0)
-    widths = data["width"]
-
-    # Error bar math correction: standard error of the mean uses sqrt(n)
-    y_errs = data["std_y"].fillna(0) / (np.sqrt(n) + 1e-8)
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(6, 6))
-
-    # 1. Grab base color passed by FacetGrid (default to Seaborn blue if missing)
-    base_color = kwargs.get("color", "C0")
-
-    # 2. Normalize n to an alpha range (e.g., 0.15 to 1.0 so empty/small bins are still visible)
-    if n.max() > n.min():
-        norm_n = (n - n.min()) / (n.max() - n.min())
-    else:
-        norm_n = np.ones_like(n)
-
-    # Scale alpha to a visible minimum (e.g., min alpha 0.25, max alpha 1.0)
-    alphas = 0.25 + 0.75 * norm_n
-
-    # 3. Convert base_color to RGBA and inject normalized alphas per bar
-    base_rgb = mcolors.to_rgb(base_color)
-    rgba_colors = np.zeros((len(n), 4))
-    rgba_colors[:, :3] = base_rgb  # Set RGB channels
-    rgba_colors[:, 3] = alphas  # Set custom alpha per bar
-
-    # Vectorized plotting using RGBA array
-    ax.bar(
-        x, y, width=widths, color=rgba_colors, yerr=y_errs, edgecolor="black"
-    )
-    ax.grid(True, linestyle="--", alpha=0.6)
-
-    ax.plot([0, 1], [0, 1], "--", alpha=0.7, color="gray")
-    ax.set(xlim=(0, 1), ylim=(0, 1))
-
-    return ax
 
 
 @app.function
@@ -770,65 +795,6 @@ def confidence_plot(
     return ax
 
 
-@app.function
-def calculate_metrics(run_file, conf_col="confidence", corr_col="correct", n_bins=10):
-    mask = run_file[conf_col].notna()
-
-    # Cast to numpy arrays to ensure safe math operations later
-    y_true = np.array(run_file.loc[mask, corr_col]).astype(int)
-    y_conf = np.array(run_file.loc[mask, conf_col]).astype(float)
-
-    metrics = {}
-
-    # --- Standard Metrics ---
-    metrics["ece"] = calculate_ece(
-        y_true, y_conf, n_bins
-    )  # (Assumes defined elsewhere)
-    metrics["brier"] = brier_score_loss(y_true, y_conf)
-    metrics["ap_success"] = average_precision_score(y_true, y_conf)
-    metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
-    metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
-    metrics["acc"] = run_file[corr_col].mean()
-
-    # Exponentially penalizes high confidence errors
-    metrics["nll"] = log_loss(y_true, y_conf)
-
-    return metrics
-
-
-@app.function
-def calculate_ece(y_correct, y_conf, n_bins=10):
-    """
-    Calculate Expected Calibration Error (ECE).
-
-    Args:
-        y_correct (np.ndarray): 1D array of binary indicators (1 if the model's
-                                prediction was correct, 0 if it was wrong).
-        y_conf (np.ndarray): 1D array of predicted confidences (probabilities).
-        n_bins (int): Number of bins to divide the [0, 1] interval.
-    """
-    bin_edges = np.linspace(0, 1, n_bins + 1)
-
-    # digitize returns 1 to n_bins+1. Subtract 1 to get 0-indexed bins.
-    # We use np.clip to ensure that confidence exactly equal to 1.0 is
-    # placed in the last bin instead of falling out of bounds.
-    bin_indices = np.clip(np.digitize(y_conf, bin_edges) - 1, 0, n_bins - 1)
-
-    ece = 0.0
-    n_total = len(y_correct)
-
-    for i in range(n_bins):
-        bin_mask = bin_indices == i
-        if np.any(bin_mask):
-            bin_accuracy = np.mean(y_correct[bin_mask])
-            bin_confidence = np.mean(y_conf[bin_mask])
-
-            # Weighting by the fraction of samples in this bin
-            ece += np.abs(bin_accuracy - bin_confidence) * np.sum(bin_mask) / n_total
-
-    return ece
-
-
 @app.cell
 def _():
     prompt_mapping = {
@@ -837,8 +803,10 @@ def _():
         "direct": "Direct",
         "top-k": "Top-k",
     }
+
     metric_mapping = {
         "ece": "Expected Calibration Error (ECE)",
+        "d_ece": "Discrete ECE",
         "brier": "Brier Score",
         "ap_success": "Average Precision (Success)",
         "ap_errors": "Average Precision (Errors)",
