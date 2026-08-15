@@ -1,0 +1,338 @@
+[
+  {
+    "ID": "vy1n12lt",
+    "dataset": "HotpotQA",
+    "model": "DeepSeek-V3",
+    "prompt": "cot",
+    "csv_file": "vy1n12lt.csv"
+  },
+  {
+    "ID": "uo2u5m33",
+    "dataset": "HotpotQA",
+    "model": "DeepSeek-V3",
+    "prompt": "multistep",
+    "csv_file": "uo2u5m33.csv"
+  },
+  {
+    "ID": "5fdai5h7",
+    "dataset": "HotpotQA",
+    "model": "DeepSeek-V3",
+    "prompt": "top-k",
+    "csv_file": "5fdai5h7.csv"
+  },
+  {
+    "ID": "71fhbj6s",
+    "dataset": "MuSiQue",
+    "model": "DeepSeek-V3",
+    "prompt": "top-k",
+    "csv_file": "71fhbj6s.csv"
+  },
+  {
+    "ID": "nrs6ugxw",
+    "dataset": "MuSiQue",
+    "model": "DeepSeek-V3",
+    "prompt": "direct",
+    "csv_file": "nrs6ugxw.csv"
+  },
+  {
+    "ID": "l1vy1axf",
+    "dataset": "MuSiQue",
+    "model": "DeepSeek-V3",
+    "prompt": "multistep",
+    "csv_file": "l1vy1axf.csv"
+  },
+  {
+    "ID": "b0ref9y2",
+    "dataset": "2WikiMultihopQA",
+    "model": "DeepSeek-V3",
+    "prompt": "direct",
+    "csv_file": "b0ref9y2.csv"
+  },
+  {
+    "ID": "krk5jsfl",
+    "dataset": "HotpotQA",
+    "model": "DeepSeek-V3",
+    "prompt": "direct",
+    "csv_file": "krk5jsfl.csv"
+  },
+  {
+    "ID": "ck1php1l",
+    "dataset": "2WikiMultihopQA",
+    "model": "DeepSeek-V3",
+    "prompt": "multistep",
+    "csv_file": "ck1php1l.csv"
+  },
+  {
+    "ID": "kjphnu2e",
+    "dataset": "MuSiQue",
+    "model": "DeepSeek-V3",
+    "prompt": "cot",
+    "csv_file": "kjphnu2e.csv"
+  },
+  {
+    "ID": "ej74u5a3",
+    "dataset": "2WikiMultihopQA",
+    "model": "DeepSeek-V3",
+    "prompt": "cot",
+    "csv_file": "ej74u5a3.csv"
+  },
+  {
+    "ID": "f18dra4e",
+    "dataset": "2WikiMultihopQA",
+    "model": "DeepSeek-V3",
+    "prompt": "top-k",
+    "csv_file": "f18dra4e.csv"
+  },
+  {
+    "ID": "gp51vabc",
+    "dataset": "2WikiMultihopQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "top-k",
+    "csv_file": "gp51vabc.csv"
+  },
+  {
+    "ID": "230q321e",
+    "dataset": "2WikiMultihopQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "multistep",
+    "csv_file": "230q321e.csv"
+  },
+  {
+    "ID": "2h1uprtd",
+    "dataset": "HotpotQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "multistep",
+    "csv_file": "2h1uprtd.csv"
+  },
+  {
+    "ID": "ukkob161",
+    "dataset": "MuSiQue",
+    "model": "Llama-3.3-70B",
+    "prompt": "multistep",
+    "csv_file": "ukkob161.csv"
+  },
+  {
+    "ID": "sg45ifny",
+    "dataset": "2WikiMultihopQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "direct",
+    "csv_file": "sg45ifny.csv"
+  },
+  {
+    "ID": "74uhoup5",
+    "dataset": "MuSiQue",
+    "model": "Llama-3.3-70B",
+    "prompt": "top-k",
+    "csv_file": "74uhoup5.csv"
+  },
+  {
+    "ID": "ry4hwozb",
+    "dataset": "MuSiQue",
+    "model": "Llama-3.3-70B",
+    "prompt": "cot",
+    "csv_file": "ry4hwozb.csv"
+  },
+  {
+    "ID": "9bwc6w31",
+    "dataset": "HotpotQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "cot",
+    "csv_file": "9bwc6w31.csv"
+  },
+  {
+    "ID": "n4s2lcks",
+    "dataset": "HotpotQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "top-k",
+    "csv_file": "n4s2lcks.csv"
+  },
+  {
+    "ID": "ab35fs5e",
+    "dataset": "2WikiMultihopQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "cot",
+    "csv_file": "ab35fs5e.csv"
+  },
+  {
+    "ID": "keis371x",
+    "dataset": "MuSiQue",
+    "model": "Llama-3.3-70B",
+    "prompt": "direct",
+    "csv_file": "keis371x.csv"
+  },
+  {
+    "ID": "eg32i4a1",
+    "dataset": "HotpotQA",
+    "model": "Llama-3.3-70B",
+    "prompt": "direct",
+    "csv_file": "eg32i4a1.csv"
+  },
+  {
+    "ID": "1xowlg3z",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o",
+    "prompt": "multistep",
+    "csv_file": "1xowlg3z.csv"
+  },
+  {
+    "ID": "gr7ngjjq",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o",
+    "prompt": "multistep",
+    "csv_file": "gr7ngjjq.csv"
+  },
+  {
+    "ID": "j6kgohw0",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o",
+    "prompt": "cot",
+    "csv_file": "j6kgohw0.csv"
+  },
+  {
+    "ID": "ctewp0an",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o",
+    "prompt": "top-k",
+    "csv_file": "ctewp0an.csv"
+  },
+  {
+    "ID": "ao9rzbl6",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o",
+    "prompt": "cot",
+    "csv_file": "ao9rzbl6.csv"
+  },
+  {
+    "ID": "a5nwxuu5",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o",
+    "prompt": "top-k",
+    "csv_file": "a5nwxuu5.csv"
+  },
+  {
+    "ID": "q8mly2jv",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o",
+    "prompt": "direct",
+    "csv_file": "q8mly2jv.csv"
+  },
+  {
+    "ID": "r8k9lo7u",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o",
+    "prompt": "direct",
+    "csv_file": "r8k9lo7u.csv"
+  },
+  {
+    "ID": "62vwtwzf",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o",
+    "prompt": "top-k",
+    "csv_file": "62vwtwzf.csv"
+  },
+  {
+    "ID": "ul91s1f1",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o",
+    "prompt": "multistep",
+    "csv_file": "ul91s1f1.csv"
+  },
+  {
+    "ID": "4ozhkaeq",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o",
+    "prompt": "cot",
+    "csv_file": "4ozhkaeq.csv"
+  },
+  {
+    "ID": "27ttbhgo",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o",
+    "prompt": "direct",
+    "csv_file": "27ttbhgo.csv"
+  },
+  {
+    "ID": "ikkf2ta0",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o-mini",
+    "prompt": "cot",
+    "csv_file": "ikkf2ta0.csv"
+  },
+  {
+    "ID": "cts436nb",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o-mini",
+    "prompt": "direct",
+    "csv_file": "cts436nb.csv"
+  },
+  {
+    "ID": "kkfqx0eg",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o-mini",
+    "prompt": "top-k",
+    "csv_file": "kkfqx0eg.csv"
+  },
+  {
+    "ID": "cf7cb2ph",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o-mini",
+    "prompt": "multistep",
+    "csv_file": "cf7cb2ph.csv"
+  },
+  {
+    "ID": "9287wmkn",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o-mini",
+    "prompt": "top-k",
+    "csv_file": "9287wmkn.csv"
+  },
+  {
+    "ID": "pjjhsvb9",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o-mini",
+    "prompt": "direct",
+    "csv_file": "pjjhsvb9.csv"
+  },
+  {
+    "ID": "8pi5o6u9",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o-mini",
+    "prompt": "cot",
+    "csv_file": "8pi5o6u9.csv"
+  },
+  {
+    "ID": "63ulb3ob",
+    "dataset": "HotpotQA",
+    "model": "gpt-4o-mini",
+    "prompt": "multistep",
+    "csv_file": "63ulb3ob.csv"
+  },
+  {
+    "ID": "thgw3u8h",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o-mini",
+    "prompt": "cot",
+    "csv_file": "thgw3u8h.csv"
+  },
+  {
+    "ID": "vnuejoul",
+    "dataset": "MuSiQue",
+    "model": "gpt-4o-mini",
+    "prompt": "multistep",
+    "csv_file": "vnuejoul.csv"
+  },
+  {
+    "ID": "ycwvptfy",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o-mini",
+    "prompt": "top-k",
+    "csv_file": "ycwvptfy.csv"
+  },
+  {
+    "ID": "ywrdxifp",
+    "dataset": "2WikiMultihopQA",
+    "model": "gpt-4o-mini",
+    "prompt": "direct",
+    "csv_file": "ywrdxifp.csv"
+  }
+]
