@@ -1,7 +1,23 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
-def compute_bin_stats(y_true, y_prob, bins):
+
+def repo_root() -> Path:
+    """Return the repository root (directory containing ``pyproject.toml``).
+
+    Searches upward from the current working directory, so notebooks work
+    regardless of whether they are launched from the repo root or from
+    ``notebooks/``.
+    """
+    cwd = Path.cwd()
+    for parent in [cwd, *cwd.parents]:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    raise FileNotFoundError("Could not locate repo root (pyproject.toml)")
+
+
+def compute_bin_stats(y_true, y_prob, bins=None, n_bins=10):
     """
     Compute per-bin statistics for calibration tasks.
     Parameters
@@ -10,14 +26,18 @@ def compute_bin_stats(y_true, y_prob, bins):
         True binary labels (0 or 1).
     y_prob : array-like
         Predicted probabilities for the positive class (floats in [0, 1]).
-    bins : array-like
-        Bin edges for confidence intervals (e.g., [0.0, 0.1, ..., 1.0]).
+    bins : array-like, optional
+        Bin edges (default: np.linspace(0, 1, n_bins + 1)).
+    n_bins : int
+        Number of equal-width bins used when ``bins`` is None.
 
     Returns a DataFrame with:
-        bin, mid, mean_y, mean_conf, n
+        bin, mid, start, end, width, mean_y, std_y, mean_conf, n, std_err
     """
     conf = np.asarray(y_prob)
     y = np.asarray(y_true)
+    if bins is None:
+        bins = np.linspace(0.0, 1.0, n_bins + 1)
     bins = np.asarray(bins, dtype=float)
 
     labels = [f"{bins[i]:.3f}-{bins[i+1]:.3f}" for i in range(len(bins)-1)]
@@ -45,6 +65,7 @@ def compute_bin_stats(y_true, y_prob, bins):
     stats["start"] = startpoints
     stats["end"] = endpoints
     stats["width"] = widths
+    stats["std_err"] = stats["std_y"] / (np.sqrt(stats["n"]) + 1e-8)
     return stats
 
 def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10):

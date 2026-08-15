@@ -19,6 +19,7 @@ with app.setup:
     from pathlib import Path
 
     from src.metrics import bootstrap_metrics
+    from src.utils import compute_bin_stats, compute_equal_frequency_bin_stats
 
     import seaborn as sns
 
@@ -32,7 +33,9 @@ def _(prompt_mapping):
 
 @app.cell
 def _(prompt_mapping):
-    runs_dir = Path.cwd() / "runs-legacy"
+    from src.utils import repo_root
+
+    runs_dir = repo_root() / "data" / "mhqa"
     with open(runs_dir / "data.json") as f:
         _data = json.load(f)
 
@@ -87,6 +90,54 @@ def _(runs_df):
 def _():
     ### Reliability diagrams
     return
+
+
+@app.cell
+def _():
+    def confidence_bar_plot_alt(data=None, ax=None, **kwargs):
+        """Bar-plot a reliability diagram facet (seaborn FacetGrid-compatible).
+
+        Restored from commit e11710c (previously deleted accidentally).
+        FacetGrid.map_dataframe calls this as
+        ``confidence_bar_plot_alt(data=..., x="mid", y="mean_y", **plot_kwargs)``.
+        """
+        ax = kwargs.get("ax") or plt.gca()
+
+        x = data["mid"]
+        y = data["mean_y"].fillna(0)
+        n = data["n"].fillna(0)
+        widths = data["width"]
+
+        # Standard error of the mean uses sqrt(n)
+        y_errs = data["std_y"].fillna(0) / (np.sqrt(n) + 1e-8)
+
+        # 1. Grab base color passed by FacetGrid (default to Seaborn blue if missing)
+        base_color = kwargs.get("color", "C0")
+
+        # 2. Normalize n to an alpha range (0.15 to 1.0 so empty/small bins stay visible)
+        if n.max() > n.min():
+            norm_n = (n - n.min()) / (n.max() - n.min())
+        else:
+            norm_n = np.ones_like(n)
+
+        alphas = 0.25 + 0.75 * norm_n
+
+        # 3. Convert base_color to RGBA and inject normalized alphas per bar
+        base_rgb = mcolors.to_rgb(base_color)
+        rgba_colors = np.zeros((len(n), 4))
+        rgba_colors[:, :3] = base_rgb  # Set RGB channels
+        rgba_colors[:, 3] = alphas  # Set custom alpha per bar
+
+        # Vectorized plotting using RGBA array
+        ax.bar(x, y, width=widths, color=rgba_colors, yerr=y_errs, edgecolor="black")
+        ax.grid(True, linestyle="--", alpha=0.6)
+
+        ax.plot([0, 1], [0, 1], "--", alpha=0.7, color="gray")
+        ax.set(xlim=(0, 1), ylim=(0, 1))
+
+        return ax
+
+    return (confidence_bar_plot_alt,)
 
 
 @app.cell
@@ -494,7 +545,9 @@ def _(get_run_df, runs_df):
         print(f"Calculating metrics for {_run['model']} on {_run['dataset']} with prompt {_run['prompt']} (Verbalized: {is_verbalized})")
         y_true = _run_df["em"].values & _run_df["gpt_eval"].values
         y_conf = _run_df["confidence"].values
-        m = bootstrap_metrics(y_true, y_conf, d_ece=is_verbalized)
+        m = bootstrap_metrics(
+            y_true, y_conf, ece="both" if is_verbalized else "binned"
+        )
         _metrics.append(m)
 
     metrics_df = pd.concat([runs_df, pd.DataFrame(_metrics)], axis=1)
@@ -661,39 +714,6 @@ def _():
 
 
 @app.function
-def compute_bin_stats(y_true, y_prob, bins=None, n_bins=10):
-    """Compute per-bin statistics for calibration tasks."""
-    if bins is None:
-        bins = np.linspace(0, 1, n_bins+1)
-    else:
-        bins = np.asarray(bins)
-
-    df = pd.DataFrame({"conf": y_prob, "y": y_true})
-    df["bin"] = pd.cut(df["conf"], bins=bins, include_lowest=True)
-
-    # `observed=False` ensures empty bins are kept, removing the need for `.reindex()`
-    stats = (
-        df.groupby("bin", observed=False)
-        .agg(
-            mean_y=("y", "mean"),
-            std_y=("y", "std"),
-            mean_conf=("conf", "mean"),
-            n=("y", "count"),
-        )
-        .reset_index(drop=True)
-    )
-
-    # Calculate intervals directly using array math
-    stats["start"] = bins[:-1]
-    stats["end"] = bins[1:]
-    stats["width"] = np.diff(bins)
-    stats["mid"] = stats["start"] + stats["width"] / 2
-    stats["std_err"] = stats["std_y"] / (np.sqrt(stats["n"]) + 1e-8)  # Avoid division by zero
-
-    return stats
-
-
-@app.function
 def confidence_bar_plot(y_true, y_probs, bins=None, ax=None):
     """Plot calibration reliability diagram."""
     # np.hstack natively flattens both single arrays and lists of arrays
@@ -727,43 +747,6 @@ def confidence_bar_plot(y_true, y_probs, bins=None, ax=None):
     ax.set(xlim=(0, 1), ylim=(0, 1))
 
     return ax
-
-
-@app.function
-def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10):
-    """
-    Create equal-frequency bins based on predicted probabilities and calculate mean accuracy per bin.
-    Parameters
-    ----------
-    y_true : array-like
-        True binary labels (0 or 1).
-    y_prob : array-like
-        Predicted probabilities for the positive class (floats in [0, 1]).
-    n_bins : int
-        Number of equal-frequency bins to create.
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns: Bin, Accuracy, Confidence (mean predicted probability in the bin).
-    """
-    bins = pd.qcut(y_prob, n_bins, labels=False, duplicates="drop")
-    df = pd.DataFrame({"y_true": y_true, "y_prob": y_prob, "bin": bins})
-
-    binned = (
-        df.groupby("bin")
-        .agg(
-            mean_y=("y_true", "mean"),
-            std_y=("y_true", "std"),
-            mean_conf=("y_prob", "mean"),
-            n=("y_true", "count"),
-            start=("y_prob", "min"),
-            end=("y_prob", "max"),
-            width=("y_prob", lambda x: x.max() - x.min()),
-        )
-        .reset_index()
-    )
-
-    return binned
 
 
 @app.function

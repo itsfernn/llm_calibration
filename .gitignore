@@ -1,9 +1,19 @@
-out
+# raw input datasets (large, copied locally; not versioned)
+data/raw/
+
+# legacy jupyter notebooks (archived in notebooks/legacy/, not versioned)
+notebooks/legacy/
+
+# qwen run outputs (regenerable)
 out_runs
-__pycache__
-.ipynb_checkpoints
-cache
-runs-legacy
-.env
-__marimo__
+
+# caches and runtime state
+__pycache__/
+.ipynb_checkpoints/
+cache/
+.marimo_cache/
 __marimo__/
+.pytest_cache/
+
+# secrets
+.env

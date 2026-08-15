@@ -84,12 +84,9 @@ def _():
 
 @app.cell
 def _():
-    cwd = Path.cwd()
-    if (cwd / "runs-legacy").exists():
-        runs_dir = cwd / "runs-legacy"
-    else:
-        runs_dir = cwd.parent / "runs-legacy"
+    from src.utils import repo_root
 
+    runs_dir = repo_root() / "data" / "mhqa"
     runs_df = load_runs(runs_dir)
     mo.md(f"**{len(runs_df)} runs** loaded from `{runs_dir}`")
     return runs_df, runs_dir
@@ -960,7 +957,7 @@ def _():
     mo.md(r"""
     #### Details
 
-    - Data: `runs-legacy/`, labels = `gpt_eval`, confidence = `confidence`
+    - Data: `data/mhqa/`, labels = `gpt_eval`, confidence = `confidence`
       (verbalized).
     - 3-fold stratified CV, `seed=42`; scaling fitted on the training folds only.
     - Combined bootstrap: 100 resamples per held-out fold (300 per run/method), pooled;

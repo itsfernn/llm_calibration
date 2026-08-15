@@ -6,12 +6,6 @@ app = marimo.App(width="medium")
 with app.setup:
     import marimo as mo
     import numpy as np
-    from sklearn.metrics import (
-        brier_score_loss,
-        average_precision_score,
-        roc_auc_score,
-        log_loss,
-    )
 
     import matplotlib.pyplot as plt
 
@@ -22,7 +16,9 @@ with app.setup:
     import json
     import re
     import glob
-    from netcal.metrics import ECE
+
+    from src.metrics import bootstrap_metrics, calculate_metrics
+    from src.utils import compute_equal_frequency_bin_stats
 
 
 @app.cell
@@ -213,7 +209,13 @@ def get_bootstrap_metrics(df, conf_type="verb", n_bootstrap=1000, n_bins=10):
         mask = o[f"{conf_type}_conf"].notna()
         y_true = np.array(o.loc[mask, "correct"]).astype(int)
         y_conf = np.array(o.loc[mask, f"{conf_type}_conf"]).astype(float)
-        m = bootstrap_metrics(y_true, y_conf, conf_type=conf_type, n_bootstrap=n_bootstrap, n_bins=n_bins)
+        m = bootstrap_metrics(
+            y_true,
+            y_conf,
+            ece="discrete" if conf_type == "verb" else "binned",
+            n_bootstrap=n_bootstrap,
+            n_bins=n_bins,
+        )
         m["type"] = row["type"]
         metrics.append(m)
     return pd.DataFrame(metrics)
@@ -491,7 +493,12 @@ def _():
 
 @app.function
 def load_data():
-    paths = glob.glob("calibrationData/**/metadata.json", recursive=True)
+    from src.utils import repo_root
+
+    paths = glob.glob(
+        str(repo_root() / "data" / "qwen" / "**" / "metadata.json"),
+        recursive=True,
+    )
 
     rows = []
 
@@ -551,7 +558,12 @@ def _(conf_mapping, dataset_mapping):
                 mask = o[f"{type}_conf"].notna()
                 y_true = np.array(o.loc[mask, "correct"]).astype(int)
                 y_conf = np.array(o.loc[mask, f"{type}_conf"]).astype(float)
-                m = calculate_metrics(y_true, y_conf, method=type, n_bins=10)
+                m = calculate_metrics(
+                    y_true,
+                    y_conf,
+                    ece="discrete" if type == "verb" else "binned",
+                    n_bins=10,
+                )
                 metrics.append(m)
 
             return metrics
@@ -606,94 +618,6 @@ def _():
     )
 
     sns.color_palette(custom_palette)
-    return
-
-
-@app.function
-def compute_verbalized_calibration_error(y_true, y_conf):
-    df = pd.DataFrame({"y_true": y_true, "y_conf": y_conf})
-    binned = df.groupby("y_conf").agg(
-        accuracy=("y_true", "mean"),
-        count=("y_true", "count")
-    ).reset_index()
-    binned["error"] = np.abs(binned["accuracy"] - binned["y_conf"])
-    total_samples = len(y_true)
-    binned["weight"] = binned["count"] / total_samples
-    return np.sum(binned["weight"] * binned["error"])
-
-
-@app.function
-def calculate_metrics(y_true, y_conf, method="verb", n_bins=10):
-    metrics = {}
-
-    if method == "verb":
-        metrics["ece"] = compute_verbalized_calibration_error(y_true, y_conf)
-    else:
-        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true)
-
-    metrics["brier"] = brier_score_loss(y_true, y_conf)
-    metrics["ap_success"] = average_precision_score(y_true, y_conf)
-    metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
-    metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
-    metrics["acc"] = y_true.mean()
-    metrics["nll"] = log_loss(y_true, y_conf)
-
-    return metrics
-
-
-@app.function
-def bootstrap_metrics(y_true, y_conf, conf_type="verb", n_bootstrap=1000, n_bins=10, seed=42):
-    """
-    Compute point estimates and bootstrap confidence intervals for various metrics.
-
-    Parameters:
-    - y_true: Ground truth binary labels (0 or 1).
-    - y_conf: Predicted confidence scores (between 0 and 1).
-    - conf_type: Type of confidence ('verb' or 'log').
-    - n_bootstrap: Number of bootstrap samples to draw.
-    - n_bins: Number of bins for ECE calculation.
-    - seed: Random seed for reproducibility.
-    
-    Returns:
-    - A dictionary containing point estimates, 95% confidence intervals, and standard errors for each
-        metric.
-        """
-    rng = np.random.default_rng(seed)
-    num_samples = len(y_true)
-
-    point_metrics = calculate_metrics(y_true, y_conf, method=conf_type, n_bins=n_bins)
-
-    bootstrap_results = {key: [] for key in point_metrics.keys()}
-
-    for _ in range(n_bootstrap):
-        idx = rng.choice(num_samples, size=num_samples, replace=True)
-        boot_m = calculate_metrics(y_true[idx], y_conf[idx], method=conf_type, n_bins=n_bins)
-
-        for key, val in boot_m.items():
-            bootstrap_results[key].append(val)
-
-    # 3. Aggregate Percentiles (95% CI) and Standard Error
-    final_metrics = {}
-    for key, point_val in point_metrics.items():
-        vals = np.array(bootstrap_results[key])
-        ci_lower = np.percentile(vals, 2.5)
-        ci_upper = np.percentile(vals, 97.5)
-        std_err = np.std(vals, ddof=1)
-
-        # Output clean scalar/tuple fields for downstream reporting
-        final_metrics[f"{key}"] = point_val
-        final_metrics[f"{key}_ci_lower"] = ci_lower
-        final_metrics[f"{key}_ci_upper"] = ci_upper
-        final_metrics[f"{key}_se"] = std_err
-
-    return final_metrics
-
-
-@app.cell(hide_code=True)
-def _():
-    mo.md(r"""
-    ### Preprocess
-    """)
     return
 
 
@@ -756,33 +680,6 @@ def preprocess_ai2_arc(df):
 
 @app.cell
 def _():
-    def compute_equal_frequency_bin_stats(y_true, y_prob, n_bins=10):
-        y_prob = np.asarray(y_prob)
-        y_true = np.asarray(y_true)
-
-        # 2. Determine bin assignments using the jittered probabilities
-        bins = pd.qcut(y_prob, n_bins, labels=False, duplicates="drop")
-
-        # 3. Store ORIGINAL probabilities so final statistics aren't noisy
-        df = pd.DataFrame({"y_true": y_true, "y_prob": y_prob, "bin": bins})
-
-        binned = (
-            df.groupby("bin")
-            .agg(
-                mean_y=("y_true", "mean"),
-                std_y=("y_true", "std"),
-                mean_conf=("y_prob", "mean"),
-                n=("y_true", "count"),
-                start=("y_prob", "min"),
-                end=("y_prob", "max"),
-                width=("y_prob", lambda x: x.max() - x.min()),
-            )
-            .reset_index()
-        )
-
-        return binned
-
-
     def prepare_eq_bins(selection_df, cor_col="correct", conf_col="confidence"):
         combined_dfs = []
 

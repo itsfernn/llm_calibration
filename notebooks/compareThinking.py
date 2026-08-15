@@ -45,8 +45,19 @@ def _(mo):
 
 @app.cell
 def _():
+    from src.utils import repo_root
+
     paths = glob.glob(
-        "calibrationData/gsm8k/additional/**/metadata.json", recursive=True
+        str(
+            repo_root()
+            / "data"
+            / "qwen"
+            / "gsm8k"
+            / "additional"
+            / "**"
+            / "metadata.json"
+        ),
+        recursive=True,
     )
 
     rows = []
@@ -107,13 +118,14 @@ def process_df(df):
             mask = output_file[f"{method}_conf"].notna()
             y_true = output_file.loc[mask, "correct"]
             y_conf = output_file.loc[mask, f"{method}_conf"]
-            ece_values = metrics.bootstrap_ece(
+            ece_values = metrics.bootstrap_metrics(
                 output_file["correct"],
                 output_file[f"{method}_conf"],
+                ece="discrete" if method == "verb" else "binned",
                 n_bootstrap=10,
             )
             df.loc[t, f"{method}_ece"] = ece_values["ece"]
-            df.loc[t, f"{method}_ece_se"] = ece_values["se"]
+            df.loc[t, f"{method}_ece_se"] = ece_values["ece_se"]
             df.loc[t, f"{method}_brier"] = metrics.brier_score_loss(y_true, y_conf)
             df.loc[t, f"{method}_ap"] = metrics.average_precision_score(y_true, y_conf)
             df.loc[t, f"{method}_roc_auc"] = metrics.roc_auc_score(y_true, y_conf)

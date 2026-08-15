@@ -82,7 +82,7 @@ def cv_folds(conf, y, method: str, n_folds: int = 5, seed: int = 42):
 def fold_metrics(folds, n_bins: int = 10) -> list[dict]:
     """Per-fold point metrics (one dict per fold)."""
     return [
-        calculate_metrics(f["y"], f["probs"], d_ece=False, n_bins=n_bins)
+        calculate_metrics(f["y"], f["probs"], ece="binned", n_bins=n_bins)
         for f in folds
     ]
 
@@ -94,7 +94,7 @@ def _bootstrap_fold(fold_probs, fold_y, n_bootstrap, seed, n_bins):
     rows = []
     for _ in range(n_bootstrap):
         idx = rng.integers(0, n, size=n)
-        m = calculate_metrics(fold_y[idx], fold_probs[idx], d_ece=False, n_bins=n_bins)
+        m = calculate_metrics(fold_y[idx], fold_probs[idx], ece="binned", n_bins=n_bins)
         rows.append(m)
     return pd.DataFrame(rows)
 
@@ -245,20 +245,6 @@ def summarize_cv(metric_rows: list[dict], boot_pooled: pd.DataFrame):
     return summary
 
 
-def cv_evaluate(conf, y, method: str, n_folds=5, seed=42, n_bootstrap=100, n_jobs=-1):
-    """Full CV evaluation of one (run, method): per-fold metrics + combined bootstrap."""
-    folds = cv_folds(conf, y, method, n_folds=n_folds, seed=seed)
-    metric_rows = fold_metrics(folds)
-    boot_folds = Parallel(n_jobs=n_jobs)(
-        delayed(_bootstrap_fold)(f["probs"], f["y"], n_bootstrap, seed + i, 10)
-        for i, f in enumerate(folds)
-    )
-    boot_pooled = pd.concat(boot_folds, ignore_index=True)
-    summary = summarize_cv(metric_rows, boot_pooled)
-    summary["n"] = len(y)
-    return folds, metric_rows, boot_pooled, summary
-
-
 def transfer_metrics(
     src_conf,
     src_y,
@@ -286,7 +272,7 @@ def transfer_metrics(
         method, src_conf[train_idx], tgt_conf, src_y[train_idx]
     )
     probs = np.asarray(probs, dtype=float)
-    metrics = calculate_metrics(tgt_y, probs, d_ece=False, n_bins=n_bins)
+    metrics = calculate_metrics(tgt_y, probs, ece="binned", n_bins=n_bins)
     return metrics, probs
 
 
@@ -378,7 +364,7 @@ def transfer_metrics_pooled(
     train_idx = rng.choice(len(src_conf), size=n_train, replace=False)
     probs = apply_scaling(method, src_conf[train_idx], tgt_conf, src_y[train_idx])
     probs = np.asarray(probs, dtype=float)
-    metrics = calculate_metrics(tgt_y, probs, d_ece=False, n_bins=n_bins)
+    metrics = calculate_metrics(tgt_y, probs, ece="binned", n_bins=n_bins)
     return metrics, probs
 
 

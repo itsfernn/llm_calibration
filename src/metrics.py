@@ -1,5 +1,13 @@
+"""Calibration and discrimination metrics.
+
+Single source of truth for metric computation in this repo. Every notebook and
+evaluation module computes metrics through :func:`calculate_metrics` and
+:func:`bootstrap_metrics` defined here.
+"""
+
 import numpy as np
 import pandas as pd
+from joblib import Parallel, delayed
 from netcal.metrics import ECE
 from sklearn.metrics import (
     average_precision_score,
@@ -9,7 +17,13 @@ from sklearn.metrics import (
 )
 
 
-def _compute_verbalized_calibration_error(y_true, y_conf):
+def verbalized_calibration_error(y_true, y_conf):
+    """Discrete calibration error for step-valued verbalized confidence.
+
+    Groups samples by their (rounded) confidence value and computes the
+    sample-weighted mean absolute difference between accuracy and confidence
+    within each group.
+    """
     df = pd.DataFrame(
         {"y_true": np.asarray(y_true), "y_conf": np.asarray(y_conf).round(2)}
     )
@@ -26,13 +40,46 @@ def _compute_verbalized_calibration_error(y_true, y_conf):
     return np.sum(binned["weight"] * binned["error"])
 
 
-def calculate_metrics(y_true, y_conf, d_ece=False, n_bins=10):
+# backward-compatible alias
+_compute_verbalized_calibration_error = verbalized_calibration_error
+
+
+def calculate_metrics(y_true, y_conf, ece="binned", n_bins=10):
+    """Compute calibration and discrimination metrics for one sample set.
+
+    Parameters
+    ----------
+    y_true : array-like
+        Binary labels (0/1).
+    y_conf : array-like
+        Predicted confidences in [0, 1].
+    ece : {"binned", "discrete", "both"}
+        - "binned" (default): equal-width binned ECE (netcal).
+        - "discrete": discrete verbalized-calibration error, stored under "ece".
+        - "both": binned ECE under "ece" plus discrete under "d_ece".
+    n_bins : int
+        Number of bins for the binned ECE.
+
+    Returns
+    -------
+    dict with keys: ece[, d_ece], brier, ap_success, ap_errors, auc_roc, acc, nll
+    """
+    y_true = np.asarray(y_true)
+    y_conf = np.asarray(y_conf)
+
     metrics = {}
+    if ece == "binned":
+        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true)
+    elif ece == "discrete":
+        metrics["ece"] = verbalized_calibration_error(y_true, y_conf)
+    elif ece == "both":
+        metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true)
+        metrics["d_ece"] = verbalized_calibration_error(y_true, y_conf)
+    else:
+        raise ValueError(
+            f"ece must be one of 'binned', 'discrete', 'both'; got {ece!r}"
+        )
 
-    if d_ece:
-        metrics["d_ece"] = _compute_verbalized_calibration_error(y_true, y_conf)
-
-    metrics["ece"] = ECE(bins=n_bins).measure(y_conf, y_true)
     metrics["brier"] = brier_score_loss(y_true, y_conf)
     metrics["ap_success"] = average_precision_score(y_true, y_conf)
     metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
@@ -43,32 +90,36 @@ def calculate_metrics(y_true, y_conf, d_ece=False, n_bins=10):
     return metrics
 
 
-import numpy as np
-from joblib import Parallel, delayed
-
-
-def _single_bootstrap(seed, y_true, y_conf, d_ece, n_bins, num_samples):
-    """Helper function to execute a single bootstrap iteration."""
+def _single_bootstrap(seed, y_true, y_conf, ece, n_bins, num_samples):
+    """Run one bootstrap iteration (helper for :func:`bootstrap_metrics`)."""
     rng = np.random.default_rng(seed)
     idx = rng.choice(num_samples, size=num_samples, replace=True)
-    return calculate_metrics(y_true[idx], y_conf[idx], d_ece=d_ece, n_bins=n_bins)
+    return calculate_metrics(y_true[idx], y_conf[idx], ece=ece, n_bins=n_bins)
 
 
 def bootstrap_metrics(
-    y_true, y_conf, d_ece=False, n_bootstrap=1000, n_bins=10, seed=42, n_jobs=-1
+    y_true,
+    y_conf,
+    ece="binned",
+    n_bootstrap=1000,
+    n_bins=10,
+    seed=42,
+    n_jobs=-1,
 ):
-    """
-    Compute point estimates and parallelized bootstrap confidence intervals.
+    """Point estimates plus bootstrap confidence intervals for every metric.
 
-    Parameters:
-    - n_jobs: Number of CPU cores to use (-1 uses all available cores).
+    Runs :func:`calculate_metrics` on ``n_bootstrap`` resamples of the data
+    (parallel, reproducible via ``seed``).
+
+    Returns a dict with ``<metric>``, ``<metric>_ci_lower``, ``<metric>_ci_upper``
+    and ``<metric>_se`` for each metric of :func:`calculate_metrics`.
     """
     y_true = np.asarray(y_true)
     y_conf = np.asarray(y_conf)
     num_samples = len(y_true)
 
     # 1. Point estimates
-    point_metrics = calculate_metrics(y_true, y_conf, d_ece=d_ece, n_bins=n_bins)
+    point_metrics = calculate_metrics(y_true, y_conf, ece=ece, n_bins=n_bins)
 
     # 2. Parallel random seed generation for exact reproducibility across cores
     sq = np.random.SeedSequence(seed)
@@ -76,7 +127,7 @@ def bootstrap_metrics(
 
     # 3. Parallel execution across CPU cores
     results = Parallel(n_jobs=n_jobs)(
-        delayed(_single_bootstrap)(seeds[i], y_true, y_conf, d_ece, n_bins, num_samples)
+        delayed(_single_bootstrap)(seeds[i], y_true, y_conf, ece, n_bins, num_samples)
         for i in range(n_bootstrap)
     )
 

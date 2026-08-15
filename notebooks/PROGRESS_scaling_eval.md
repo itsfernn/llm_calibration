@@ -7,7 +7,7 @@ analysis, a ranking-cost analysis, and a generalizability (transfer) analysis.
 
 ## Data
 
-- `runs-legacy/data.json` -> 48 runs, ~1000 samples each (HotpotQA, 2WikiMultihopQA,
+- `data/mhqa/data.json` -> 48 runs, ~1000 samples each (HotpotQA, 2WikiMultihopQA,
   MuSiQue; gpt-4o-mini, gpt-4o, Llama-3.3-70B, DeepSeek-V3; direct, top-k, multistep, cot).
 - Labels `gpt_eval`, confidence `confidence` (verbalized). src/metrics.py, src/plot.py,
   src/scaling.py untouched.
