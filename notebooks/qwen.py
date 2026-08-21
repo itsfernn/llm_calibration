@@ -16,6 +16,7 @@ with app.setup:
     import json
     import re
     import glob
+    from pathlib import Path
 
     from src.metrics import bootstrap_metrics, calculate_metrics
     from src.utils import compute_equal_frequency_bin_stats
@@ -37,7 +38,7 @@ def _(df):
 
 @app.cell
 def _(get_results_df, main_df):
-    with mo.persistent_cache("main_plot"):
+    with mo.persistent_cache("main_plot_boot_v2"):
         main_plot_df = get_results_df(main_df)
     return (main_plot_df,)
 
@@ -50,42 +51,22 @@ def _(metric_mapping):
     return (metric_dropdown,)
 
 
-@app.cell
-def _(main_plot_df, metric_dropdown, metric_mapping):
+@app.cell(hide_code=True)
+def _(main_plot_df, metric_dropdown, metric_mapping, plot_metric_vs_size):
     _current_metric = metric_dropdown.value
     _pretty_metric = metric_mapping.get(_current_metric, _current_metric)
-
-    _plot_df = main_plot_df
-
-    # 4. Initialize the grid (Defining 'hue' here cleanly coordinates the legend)
-    _g = sns.FacetGrid(
-        _plot_df,
-        col="dataset",
-        hue="conf_type",
-        height=4.5,
-        aspect=1.1,
+    plot_metric_vs_size(
+        main_plot_df,
+        _current_metric,
+        metric_label=_pretty_metric,
+        title=f"{_pretty_metric} across Model Sizes",
     )
+    return
 
-    # 5. Map the data (using marker="o" draws both lines and scatter points seamlessly)
-    _g.map_dataframe(
-        sns.lineplot,
-        x="model_size",
-        y=_current_metric,
-        marker="o",
-        linewidth=3,
-        markersize=10,
-    )
 
-    # 6. Clean up styling, axes, scales, and titles
-    _g.set(xscale="log")
-    _g.set_titles(col_template="{col_name}", weight="bold", size=13)
-    _g.set_axis_labels("Model Size (Log Scale)", _pretty_metric)
-
-    # 7. Finalize the legend placement and spacing
-    _g.add_legend(title="Confidence Type", adjust_subtitles=True, bbox_to_anchor=(0.5, 0., 0.5, 0.5))
-    _g.fig.suptitle(f"{_pretty_metric} across Model Sizes", weight="bold", fontsize=16, y=1.02)
-    plt.tight_layout()
-    _g
+@app.cell
+def _(main_plot_df):
+    main_plot_df
     return
 
 
@@ -143,7 +124,7 @@ def _(main_plot_df, metric_mapping):
     # Create a figure with 1 row and 2 columns using prefixed variables
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 
-    _m = "nll"
+    _m = "brier"
     _m_pretty = metric_mapping.get(_m, _m)
 
     _fig.suptitle(f"{_m_pretty} vs. Model Accuracy")
@@ -286,6 +267,8 @@ def plot_metric_with_ci(df, metric="acc", title=None):
 def _(metric_mapping, prompt_types_metric_df):
     figs=[]
     for metric_key, metric_title in metric_mapping.items():
+        if metric_key not in prompt_types_metric_df.columns:
+            continue
         # Pass the metric key and label to your plotting function
         fig = plot_metric_with_ci(prompt_types_metric_df, metric=metric_key, title=metric_title)
         figs.append(fig)
@@ -311,7 +294,7 @@ def _(prompt_types_metric_df):
 
 @app.cell
 def _(index_name_mapping, metric_mapping):
-    def format_summary_table(df, indices, metrics=["acc", "ece", "brier", "nll", "auc_roc"]):
+    def format_summary_table(df, indices, metrics=["acc", "ece", "brier", "auc_roc", "ap_errors"]):
         formatted_df = pd.DataFrame()
         for i in indices:
             col_name = index_name_mapping[i]
@@ -457,6 +440,8 @@ def _(metric_mapping, thinking_comp_plot_df):
     _figs = []
 
     for _m, _v in metric_mapping.items():
+        if _m not in _df.columns:
+            continue
         # 1. Create a fresh figure and axis for each metric
         _fig, _ax = plt.subplots()
 
@@ -550,7 +535,6 @@ def load_run_data(row):
 def _(conf_mapping, dataset_mapping):
     # selected_df = main_df[main_df["dataset"] == dataset_dropdown.value].reset_index()
     def get_results_df(df):
-
         def get_metrics(df, type):
             metrics = []
             for i, row in df.iterrows():
@@ -558,10 +542,11 @@ def _(conf_mapping, dataset_mapping):
                 mask = o[f"{type}_conf"].notna()
                 y_true = np.array(o.loc[mask, "correct"]).astype(int)
                 y_conf = np.array(o.loc[mask, f"{type}_conf"]).astype(float)
-                m = calculate_metrics(
+                m = bootstrap_metrics(
                     y_true,
                     y_conf,
-                    ece="discrete" if type == "verb" else "binned",
+                    ece="both" if type == "verb" else "binned",
+                    n_bootstrap=1000,
                     n_bins=10,
                 )
                 metrics.append(m)
@@ -703,11 +688,15 @@ def _():
 
 
     def plot_reliability_diagrams(
-        selection_df, conf_col, hue="model_size", cmap="rocket_r", title=None
+        selection_df, conf_col, hue="model_size", cmap="rocket_r", title=None,
+        ax=None, figsize=(7, 6),
     ):
         bins_df = prepare_eq_bins(selection_df, conf_col=conf_col)
 
-        fig, ax = plt.subplots(figsize=(7, 6))
+        if ax is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            fig = ax.figure
 
         # Reference line for perfect calibration (y = x)
         ax.plot([0, 1], [0, 1], "k--", label="Perfect Calibration", alpha=0.7)
@@ -731,13 +720,15 @@ def _():
             alpha=0.8,
         )
 
-        # Create and add the colorbar
-        norm = plt.Normalize(bins_df[hue].min(), bins_df[hue].max())
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        sm.set_array([])
+        # Create and add the colorbar (skip if the hue column is constant)
+        _hue_lo, _hue_hi = bins_df[hue].min(), bins_df[hue].max()
+        if _hue_lo < _hue_hi:
+            norm = plt.Normalize(_hue_lo, _hue_hi)
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
 
-        cbar = fig.colorbar(sm, ax=ax)
-        cbar.set_label(hue.replace("_", " ").title(), rotation=270, labelpad=15)
+            cbar = fig.colorbar(sm, ax=ax)
+            cbar.set_label(hue.replace("_", " ").title(), rotation=270, labelpad=15)
 
         # Formatting
         ax.set_xlim(0, 1)
@@ -756,6 +747,180 @@ def _():
     return (plot_reliability_diagrams,)
 
 
+@app.function
+def plot_metric_vs_size(
+    plot_df,
+    metric,
+    metric_label=None,
+    title=None,
+    datasets=("AI2 ARC", "GSM8K", "MMLU"),
+    figsize=(14, 4.6),
+    ci=True,
+):
+    """Line plot of a bootstrapped metric vs model size, one panel per dataset.
+
+    Draws Verbalized Confidence and Log Probabilities with 95% CI bands
+    (from the ``*_ci_lower`` / ``*_ci_upper`` bootstrap columns).
+    """
+    colors = {"Verbalized Confidence": "#4A6984", "Log Probabilities": "#D66853"}
+    fig, axes = plt.subplots(1, len(datasets), figsize=figsize, dpi=110)
+
+    for ax, ds in zip(axes, datasets):
+        sub = plot_df[plot_df["dataset"] == ds].sort_values("model_size")
+        for conf_type in colors:
+            d = sub[sub["conf_type"] == conf_type].dropna(
+                subset=[metric, f"{metric}_ci_lower", f"{metric}_ci_upper"]
+            )
+            color = colors[conf_type]
+            if ci:
+                ax.fill_between(
+                    d["model_size"],
+                    d[f"{metric}_ci_lower"],
+                    d[f"{metric}_ci_upper"],
+                    color=color,
+                    alpha=0.25,
+                )
+            ax.plot(
+                d["model_size"],
+                d[metric],
+                marker="o",
+                color=color,
+                linewidth=2.5,
+                markersize=7,
+                label=conf_type,
+            )
+        ax.set_xscale("log")
+        ax.set_title(ds, weight="bold")
+        ax.set_xlabel("Model Size (log scale)")
+        ax.grid(True, linestyle=":", alpha=0.6)
+        if ax is axes[0]:
+            ax.set_ylabel(metric_label or metric)
+            ax.legend(frameon=False)
+
+    if title:
+        fig.suptitle(title, weight="bold", fontsize=14, y=1.02)
+    plt.tight_layout()
+    return fig
+
+
+@app.function
+def export_thesis_artifacts(main_plot_df, main_df, metric_mapping, out_dir=None):
+    """Write the bootstrapped metrics CSVs and thesis figures to results/."""
+    from src.utils import repo_root
+
+    root = repo_root()
+    tables_dir = root / "results" / "tables"
+    figures_dir = root / "results" / "figures"
+    if out_dir is not None:
+        tables_dir = Path(out_dir) / "tables"
+        figures_dir = Path(out_dir) / "figures"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- Tables ---
+    main_plot_df.to_csv(tables_dir / "qwen_main_metrics.csv", index=False)
+
+    eight = main_plot_df[main_plot_df["model_size"] == 8.0].copy()
+    eight["model"] = "Qwen3-8B"
+    eight.to_csv(tables_dir / "qwen8b_metrics.csv", index=False)
+
+    # --- Metric vs model size figures (one per metric, 3 dataset panels) ---
+    for metric in ["ece", "brier", "auc_roc", "ap_errors"]:
+        fig = plot_metric_vs_size(
+            main_plot_df,
+            metric,
+            metric_label=metric_mapping[metric],
+            title=f"{metric_mapping[metric]} across Model Sizes",
+        )
+        fig.savefig(figures_dir / f"qwen_{metric}.png", bbox_inches="tight")
+        plt.close(fig)
+
+    # --- Reliability diagrams per dataset, all model sizes (verb | log) ---
+    dataset_files = {"ai2_arc": "arc", "gsm8k": "gsm8k", "cais/mmlu": "mmlu"}
+    dataset_names = {"ai2_arc": "AI2 ARC", "gsm8k": "GSM8K", "cais/mmlu": "MMLU"}
+    conf_panels = [
+        ("verb_conf", "Verbalized Confidence"),
+        ("log_conf", "Log Probabilities"),
+    ]
+    for raw, short in dataset_files.items():
+        data = main_df[main_df["dataset"] == raw]
+        fig, axes = plt.subplots(1, 2, figsize=(13, 5.4))
+        for ax, (conf_col, conf_name) in zip(axes, conf_panels):
+            plot_reliability_diagrams(
+                data,
+                conf_col=conf_col,
+                hue="model_size",
+                cmap="flare",
+                title=f"{conf_name}: {dataset_names[raw]}",
+                ax=ax,
+            )
+        fig.suptitle(
+            f"Qwen3 Reliability Diagrams - {dataset_names[raw]} (all model sizes)",
+            weight="bold",
+            fontsize=14,
+            y=1.02,
+        )
+        fig.savefig(figures_dir / f"qwen_model_size_{short}.png", bbox_inches="tight")
+        plt.close(fig)
+
+    # --- Qwen3-8B reliability diagrams (3 datasets x 2 conf types) ---
+    eight_main = main_df[main_df["model_size"] == 8.0]
+    fig, axes = plt.subplots(3, 2, figsize=(12.5, 13))
+    for i, raw in enumerate(dataset_files):
+        data = eight_main[eight_main["dataset"] == raw]
+        for j, (conf_col, conf_name) in enumerate(conf_panels):
+            plot_reliability_diagrams(
+                data,
+                conf_col=conf_col,
+                hue="model_size",
+                cmap="flare",
+                title=f"{conf_name}: {dataset_names[raw]}",
+                ax=axes[i, j],
+            )
+    fig.suptitle("Qwen3-8B Reliability Diagrams", weight="bold", fontsize=16)
+    fig.savefig(figures_dir / "qwen8b_reliability.png", bbox_inches="tight")
+    plt.close(fig)
+
+    # --- Error detection (AP) vs accuracy scatter ---
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+    fig.suptitle("Error Detection (AP) vs. Model Accuracy", weight="bold")
+    for ax, ct in zip([ax1, ax2], ["Verbalized Confidence", "Log Probabilities"]):
+        d = main_plot_df[main_plot_df["conf_type"] == ct]
+        ax.plot([1, 0], "--", color="gray", label="Random Baseline")
+        sns.scatterplot(data=d, x="acc", y="ap_errors", hue="dataset", ax=ax, s=80)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xlabel("Accuracy")
+        ax.set_title(ct)
+        ax.legend(frameon=False, title="Dataset")
+    ax1.set_ylabel("Error Detection (AP)")
+    plt.tight_layout()
+    fig.savefig(figures_dir / "qwen_error_vs_acc.png", bbox_inches="tight")
+    plt.close(fig)
+
+    return tables_dir, figures_dir
+
+
+@app.cell(hide_code=True)
+def _():
+    export_checkbox = mo.ui.checkbox(
+        value=True,
+        label="Export thesis figures and tables to results/",
+    )
+    return (export_checkbox,)
+
+
+@app.cell(hide_code=True)
+def _(export_checkbox, export_thesis_artifacts, main_df, main_plot_df, metric_mapping):
+    if export_checkbox.value:
+        _tables_dir, _figures_dir = export_thesis_artifacts(
+            main_plot_df, main_df, metric_mapping
+        )
+        mo.md(f"Exported to `{_tables_dir}` and `{_figures_dir}`.")
+    export_checkbox
+    return
+
+
 @app.cell
 def _():
     metric_mapping = {
@@ -763,9 +928,9 @@ def _():
         "brier": "Brier Score",
         "ap_success": "Average Precision (Success)",
         "ap_errors": "Average Precision (Errors)",
-        "auc_roc": "AUC-ROC",
+        "auc_roc": "AUROC",
         "acc": "Accuracy",
-        "nll": "Negative Log-Likelihood (NLL)",
+        "d_ece": "Discretized ECE (verbalized)",
     }
 
     index_name_mapping = {
@@ -869,4 +1034,3 @@ def _(Path, df):
 
 if __name__ == "__main__":
     app.run()
-

@@ -46,9 +46,12 @@ def fmt_value(metric: Metric, value: float, percent_sign: bool = True) -> str:
 DEFAULT_METRICS = [
     Metric("acc", "Acc. $\\uparrow$", "max", ndigits=1, as_percent=True),
     Metric("ece", "ECE $\\downarrow$", "min"),
+    Metric("d_ece", "D-ECE $\\downarrow$", "min"),
     Metric("brier", "Brier $\\downarrow$", "min"),
     Metric("nll", "NLL $\\downarrow$", "min"),
     Metric("auc_roc", "AUROC $\\uparrow$", "max"),
+    Metric("ap_errors", "AP (Err.) $\\uparrow$", "max"),
+    Metric("ap_errors_norm", "AP $\\uparrow$", "max"),
 ]
 
 # CSV column used as the row label, plus how CSV values map to display labels
@@ -60,6 +63,8 @@ DEFAULT_PROMPT_LABELS = {
     "Top-k": "Top-$k$",
     "Chain of Thought": "CoT",
     "Multistep": "Multi-Step",
+    "Log Probabilities": "Log Prob.",
+    "Verbalized Confidence": "Verb. Conf.",
 }
 
 DEFAULT_SECTION_COL = "dataset"   # bold large header
@@ -77,8 +82,12 @@ def group_column_value(value) -> str:
 
 
 def format_row(metric: Metric, row: pd.Series, se_suffix: str) -> str:
-    est = fmt_value(metric, float(row[metric.name]))
-    se = fmt_value(metric, float(row[metric.name + se_suffix]), percent_sign=False)
+    est = row[metric.name]
+    se = row[metric.name + se_suffix]
+    if pd.isna(est) or pd.isna(se):
+        return "---"
+    est = fmt_value(metric, float(est))
+    se = fmt_value(metric, float(se), percent_sign=False)
     return f"{est} ({se})"
 
 
@@ -120,6 +129,7 @@ def build_table(
 
     section_order = list(dict.fromkeys(df[section_col].tolist()))
     subgroup_order = list(dict.fromkeys(df[subgroup_col].tolist()))
+    single_subgroup = len(subgroup_order) <= 1
     prompt_order = [p for p in prompt_order if p in set(df[prompt_col])] + [
         p for p in dict.fromkeys(df[prompt_col].tolist()) if p not in prompt_order
     ]
@@ -139,14 +149,15 @@ def build_table(
             if subgroup_df.empty:
                 continue
 
-            if i > 0:
-                lines.append("\\addlinespace")
-            lines.append(f"\\multicolumn{{{n_cols}}}{{l}}{{\\textit{{{group_column_value(subgroup)}}}}} \\\\")
+            if not single_subgroup:
+                if i > 0:
+                    lines.append("\\addlinespace")
+                lines.append(f"\\multicolumn{{{n_cols}}}{{l}}{{\\textit{{{group_column_value(subgroup)}}}}} \\\\")
 
             # best (min or max) estimate per metric within this subgroup
             best = {
-                m.name: subgroup_df[m.name].max() if m.direction == "max"
-                else subgroup_df[m.name].min()
+                m.name: subgroup_df[m.name].max(skipna=True) if m.direction == "max"
+                else subgroup_df[m.name].min(skipna=True)
                 for m in metrics
             }
 
@@ -158,16 +169,17 @@ def build_table(
                 cells = [prompt_labels.get(prompt, group_column_value(prompt))]
                 for m in metrics:
                     val = format_row(m, row, se_suffix)
-                    if abs(float(row[m.name]) - best[m.name]) < 1e-12:
+                    if val != "---" and abs(float(row[m.name]) - best[m.name]) < 1e-12:
                         val = f"\\textbf{{{val}}}"
                     cells.append(val)
                 lines.append("    " + " & ".join(cells) + " \\\\")
 
     lines.append("\\bottomrule")
-    lines.append(
-        "\\multicolumn{" + str(n_cols) + "}{l}{\\footnotesize{\\textit{Note:} "
-        + note + "}} \\\\"
-    )
+    if note:
+        lines.append(
+            "\\multicolumn{" + str(n_cols) + "}{l}{\\footnotesize{\\textit{Note:} "
+            + note + "}} \\\\"
+        )
     lines.append("\\end{longtable}")
     return "\n".join(lines) + "\n"
 
@@ -212,6 +224,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="table caption (default: auto-generated)")
     parser.add_argument("--note", default=None,
                         help="footnote text under the table (default: auto-generated)")
+    parser.add_argument("--no-note", action="store_true",
+                        help="omit the note line under the table")
     return parser.parse_args(argv)
 
 
@@ -243,7 +257,7 @@ def main(argv: list[str] | None = None) -> int:
         se_suffix=args.se_suffix,
         caption=caption,
         label=label,
-        note=note,
+        note=None if args.no_note else note,
     )
 
     if args.output is None:

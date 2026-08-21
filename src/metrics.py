@@ -85,7 +85,10 @@ def calculate_metrics(y_true, y_conf, ece="binned", n_bins=10):
     metrics["ap_errors"] = average_precision_score(1 - y_true, 1 - y_conf)
     metrics["auc_roc"] = roc_auc_score(y_true, y_conf)
     metrics["acc"] = y_true.mean()
-    metrics["nll"] = log_loss(y_true, y_conf)
+    # metrics["nll"] = log_loss(y_true, y_conf) # remove
+
+    metrics["ap_success_norm"] = metrics["ap_success"] / (metrics["acc"] + 1e-8)
+    metrics["ap_errors_norm"] = metrics["ap_errors"] / (1 - metrics["acc"] + 1e-8)
 
     return metrics
 
