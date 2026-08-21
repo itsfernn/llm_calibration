@@ -54,6 +54,12 @@ if __name__ == "__main__":
         help="Number of few-shot exemplars (gsm8k_fewshot only)",
     )
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="gsm8k_fewshot: suppress chain-of-thought (post-trained models "
+        "otherwise leave the Answer/Confidence fields empty)",
+    )
+    parser.add_argument(
         "--tags",
         type=str,
         nargs="*",

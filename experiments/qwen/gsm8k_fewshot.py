@@ -75,14 +75,23 @@ Examples:
 
 Now answer this question:"""
 
+# Appended when strict=True: post-trained models otherwise revert to verbose
+# chain-of-thought and leave the Answer/Confidence fields empty.
+STRICT_SUFFIX = (
+    "\nDo not show your reasoning. Output only the Answer and Confidence lines."
+)
 
-def build_fewshot_prompt(question, examples, n_examples):
+
+def build_fewshot_prompt(question, examples, n_examples, strict=False):
     """Assemble the plain-text few-shot prompt for one question."""
     example_text = "\n\n".join(
         f"Question: {q}\nAnswer: {a}\nConfidence: {c}"
         for q, a, c in examples[:n_examples]
     )
-    return INSTRUCTION.format(examples=example_text) + f"\n\nQuestion: {question}"
+    prompt = INSTRUCTION.format(examples=example_text) + f"\n\nQuestion: {question}"
+    if strict:
+        prompt += STRICT_SUFFIX
+    return prompt
 
 
 def parse_simple_output(text):
@@ -128,6 +137,7 @@ def run_gsm8k_fewshot(
     examples=None,
     tags=None,
     thinking=False,
+    strict=False,
     debug=False,
     **kwargs,
 ):
@@ -166,6 +176,7 @@ def run_gsm8k_fewshot(
         ],
         "tags": tags,
         "type": "float",
+        "strict": strict,
         "timestamp": run_timestamp,
         "device": str(device),
         "max_samples": max_samples,
@@ -206,7 +217,7 @@ def run_gsm8k_fewshot(
 
     def preprocess_batch(examples_batch):
         base_texts = [
-            build_fewshot_prompt(q, examples, n_examples)
+            build_fewshot_prompt(q, examples, n_examples, strict=strict)
             for q in examples_batch["question"]
         ]
         # Force the model to continue from the Answer: line
