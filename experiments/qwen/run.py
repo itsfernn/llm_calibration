@@ -1,6 +1,7 @@
 # run_gsm8k_cli.py
 import argparse
 from gsm8k import run_gsm8k
+from gsm8k_fewshot import run_gsm8k_fewshot
 from ai2_arc import run_ai2_arc
 from mmlu import run_mmlu
 
@@ -8,6 +9,8 @@ from mmlu import run_mmlu
 def run_dataset(dataset_name, **kwargs):
     if dataset_name == "gsm8k":
         return run_gsm8k(**kwargs)
+    elif dataset_name == "gsm8k_fewshot":
+        return run_gsm8k_fewshot(**kwargs)
     elif dataset_name == "ai2_arc":
         return run_ai2_arc(**kwargs)
     elif dataset_name == "mmlu":
@@ -43,6 +46,19 @@ if __name__ == "__main__":
         action="store_false",
         dest="thinking",
         help="Whether to include step-by-step reasoning in the prompt",
+    )
+    parser.add_argument(
+        "--n_examples",
+        type=int,
+        default=3,
+        help="Number of few-shot exemplars (gsm8k_fewshot only)",
+    )
+    parser.add_argument(
+        "--tags",
+        type=str,
+        nargs="*",
+        default=None,
+        help="Tags written to metadata.json (e.g. fewshot_comp)",
     )
     parser.add_argument(
         "--max_thinking_tokens",
