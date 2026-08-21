@@ -1,0 +1,35 @@
+{
+  "model": "Qwen/Qwen3-8B-Base",
+  "dataset": "gsm8k",
+  "batch_size": 32,
+  "thinking": false,
+  "system_prompt": "Answer the math question and estimate your confidence in your answer.\n\nFormat:\nAnswer: <number>\nConfidence: <float between 0 and 1, where 0.0 = pure guess and 1.0 = absolutely certain>\n\nExamples:\n{examples}\n\nNow answer this question:",
+  "prompt_format": "plain",
+  "few_shot": true,
+  "n_examples": 3,
+  "examples": [
+    {
+      "question": "What is 7 times 8?",
+      "answer": "56",
+      "confidence": 1.0
+    },
+    {
+      "question": "A train travels at 60 miles per hour. How far does it go in 3 hours?",
+      "answer": "180",
+      "confidence": 0.9
+    },
+    {
+      "question": "Sarah has 5 apples and gives 2 away. How many are left?",
+      "answer": "3",
+      "confidence": 0.85
+    }
+  ],
+  "tags": [
+    "fewshot_comp"
+  ],
+  "type": "float",
+  "timestamp": "20260821_163640",
+  "device": "cuda",
+  "max_samples": null,
+  "git_commit": "a8b2b9b51f548ad331a652a2ebee460d899a9ca2"
+}
